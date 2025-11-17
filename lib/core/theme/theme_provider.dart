@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:password_manager/main.dart';
+import 'package:ironvault/main.dart';
 
 import '../secure_storage.dart';
 

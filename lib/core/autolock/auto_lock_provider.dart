@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:password_manager/main.dart';
+import 'package:ironvault/main.dart';
 
 final autoLockProvider = StateNotifierProvider<AutoLockController, bool>((ref) {
   return AutoLockController(ref);

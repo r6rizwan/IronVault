@@ -41,7 +41,7 @@ class _AboutScreenState extends State<AboutScreen> {
                   Icon(Icons.lock, size: 70, color: Colors.blueAccent),
                   SizedBox(height: 10),
                   Text(
-                    "Password Manager",
+                    "IronVault",
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ],

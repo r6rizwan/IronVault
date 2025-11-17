@@ -3,7 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:password_manager/main.dart';
+import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/main.dart';
 import '../../vault/screens/credential_list_screen.dart';
 
 class EnableBiometricsScreen extends ConsumerStatefulWidget {
@@ -84,6 +85,9 @@ class _EnableBiometricsScreenState
         final storage = ref.read(secureStorageProvider);
         await storage.writeValue('biometrics_enabled', 'true');
 
+        // 🔥 RESET AUTO-LOCK STATE
+        ref.read(autoLockProvider.notifier).unlock();
+
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Biometrics enabled')));
@@ -110,6 +114,9 @@ class _EnableBiometricsScreenState
   Future<void> _skip() async {
     final storage = ref.read(secureStorageProvider);
     await storage.writeValue("biometrics_enabled", "false");
+
+    // 🔥 Reset auto-lock
+    ref.read(autoLockProvider.notifier).unlock();
 
     if (!mounted) return;
     Navigator.pushReplacement(

@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:password_manager/features/vault/screens/enable_biometrics_screen.dart';
-import 'package:password_manager/main.dart';
+import 'package:ironvault/core/widgets/common_text_field.dart';
+import 'package:ironvault/features/vault/screens/enable_biometrics_screen.dart';
+import 'package:ironvault/main.dart';
 
 class SetupMasterPinScreen extends ConsumerStatefulWidget {
   const SetupMasterPinScreen({super.key});
@@ -59,6 +60,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _pinField({
     required TextEditingController controller,
     required bool obscure,
@@ -127,19 +129,34 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
               ),
               const SizedBox(height: 24),
 
-              _pinField(
+              // _pinField(
+              //   controller: _pinController,
+              //   obscure: _obscure1,
+              //   onToggle: () => setState(() => _obscure1 = !_obscure1),
+              //   label: "Enter PIN",
+              // ),
+              CommonTextField(
+                label: "Enter PIN",
                 controller: _pinController,
                 obscure: _obscure1,
                 onToggle: () => setState(() => _obscure1 = !_obscure1),
-                label: "Enter PIN",
+                keyboardType: TextInputType.number,
               ),
+
               spacing,
 
-              _pinField(
-                controller: _confirmController,
+              // _pinField(
+              //   controller: _confirmController,
+              //   obscure: _obscure2,
+              //   onToggle: () => setState(() => _obscure2 = !_obscure2),
+              //   label: "Confirm PIN",
+              // ),
+              CommonTextField(
+                label: "Confirm PIN",
+                controller: _pinController,
                 obscure: _obscure2,
                 onToggle: () => setState(() => _obscure2 = !_obscure2),
-                label: "Confirm PIN",
+                keyboardType: TextInputType.number,
               ),
 
               const SizedBox(height: 28),

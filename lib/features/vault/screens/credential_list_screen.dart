@@ -2,12 +2,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:password_manager/features/settings/screens/settings_screen.dart';
+import 'package:ironvault/features/settings/screens/settings_screen.dart';
 
 import '../../../main.dart';
 import '../../auth/screens/login_screen.dart';
 import 'add_credential_screen.dart';
 import 'view_credential_screen.dart';
+
+import 'package:ironvault/features/vault/providers/search_provider.dart';
+import 'package:ironvault/core/widgets/search_bar.dart';
 
 class CredentialListScreen extends ConsumerStatefulWidget {
   const CredentialListScreen({super.key});
@@ -20,6 +23,8 @@ class CredentialListScreen extends ConsumerStatefulWidget {
 class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
   bool _loading = false;
   List<Map<String, dynamic>> _items = [];
+
+  final searchController = TextEditingController();
 
   @override
   void initState() {
@@ -49,6 +54,16 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final query = ref.watch(searchQueryProvider);
+
+    final filteredItems = _items.where((item) {
+      final q = query.toLowerCase();
+
+      return item["title"].toLowerCase().contains(q) ||
+          item["username"].toLowerCase().contains(q) ||
+          (item["website"] ?? "").toLowerCase().contains(q);
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -66,7 +81,6 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
               );
             },
           ),
-
           IconButton(
             onPressed: _logout,
             icon: const Icon(Icons.logout),
@@ -90,84 +104,116 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
 
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-          ? const Center(
-              child: Text(
-                "No saved passwords yet.\nTap + to add your first one.",
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-            )
-          : ListView.separated(
+          : Padding(
               padding: const EdgeInsets.all(16),
-              itemCount: _items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (_, index) {
-                final item = _items[index];
-
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ViewCredentialScreen(item: item),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                          color: Colors.black12.withOpacity(0.05),
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Colors.blueAccent,
-                          child: const Icon(Icons.lock, color: Colors.white),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item["title"],
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                item["username"],
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          size: 16,
-                          color: Colors.grey,
-                        ),
-                      ],
-                    ),
+              child: Column(
+                children: [
+                  // 🔍 SEARCH BAR
+                  IronSearchBar(
+                    controller: searchController,
+                    onChanged: (value) {
+                      ref.read(searchQueryProvider.notifier).state = value
+                          .trim()
+                          .toLowerCase();
+                    },
                   ),
-                );
-              },
+
+                  const SizedBox(height: 16),
+
+                  // EMPTY STATE
+                  if (filteredItems.isEmpty)
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          "No passwords found.",
+                          style: TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  else
+                    // LIST VIEW
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: filteredItems.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (_, index) {
+                          final item = filteredItems[index];
+
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ViewCredentialScreen(item: item),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).cardColor.withOpacity(0.95),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    blurRadius: 10,
+                                    spreadRadius: 1,
+                                    color: Colors.black12.withOpacity(0.05),
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: Colors.blueAccent,
+                                    child: const Icon(
+                                      Icons.lock,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item["title"],
+                                          style: const TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          item["username"],
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.arrow_forward_ios,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
     );
   }

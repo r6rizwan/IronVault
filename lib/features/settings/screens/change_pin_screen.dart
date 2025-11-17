@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import 'package:password_manager/main.dart';
+import 'package:ironvault/core/widgets/common_text_field.dart';
+import 'package:ironvault/main.dart';
 
 class ChangePinScreen extends ConsumerStatefulWidget {
   const ChangePinScreen({super.key});
@@ -69,6 +70,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     Navigator.pop(context);
   }
 
+  // ignore: unused_element
   Widget _pinField({
     required TextEditingController controller,
     required String label,
@@ -110,29 +112,50 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
           children: [
             const SizedBox(height: 10),
 
-            _pinField(
-              controller: _oldPinController,
+            // _pinField(
+            //   controller: _oldPinController,
+            //   label: "Old PIN",
+            //   obscure: !_showOld,
+            //   onToggle: () => setState(() => _showOld = !_showOld),
+            // ),
+            CommonTextField(
               label: "Old PIN",
+              controller: _oldPinController,
               obscure: !_showOld,
               onToggle: () => setState(() => _showOld = !_showOld),
+              keyboardType: TextInputType.number,
             ),
 
             spacing,
 
-            _pinField(
-              controller: _newPinController,
+            // _pinField(
+            //   controller: _newPinController,
+            //   label: "New PIN",
+            //   obscure: !_showNew,
+            //   onToggle: () => setState(() => _showNew = !_showNew),
+            // ),
+            CommonTextField(
               label: "New PIN",
+              controller: _newPinController,
               obscure: !_showNew,
               onToggle: () => setState(() => _showNew = !_showNew),
+              keyboardType: TextInputType.number,
             ),
 
             spacing,
 
-            _pinField(
+            // _pinField(
+            //   controller: _confirmPinController,
+            //   label: "Confirm New PIN",
+            //   obscure: !_showConfirm,
+            //   onToggle: () => setState(() => _showConfirm = !_showConfirm),
+            // ),
+            CommonTextField(
+              label: "Enter PIN",
               controller: _confirmPinController,
-              label: "Confirm New PIN",
               obscure: !_showConfirm,
               onToggle: () => setState(() => _showConfirm = !_showConfirm),
+              keyboardType: TextInputType.number,
             ),
 
             const SizedBox(height: 28),

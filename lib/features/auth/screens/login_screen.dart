@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:ironvault/core/widgets/common_text_field.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:password_manager/main.dart';
+import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/main.dart';
 
 import '../../vault/screens/credential_list_screen.dart';
 
@@ -61,6 +63,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
 
       if (success && mounted) {
+        ref.read(autoLockProvider.notifier).unlock();
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const CredentialListScreen()),
@@ -82,6 +86,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (savedHash == hash) {
       if (!mounted) return;
+
+      ref.read(autoLockProvider.notifier).unlock();
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const CredentialListScreen()),
@@ -95,6 +102,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _loading = false);
   }
 
+  // ignore: unused_element
   Widget _pinField() {
     return TextField(
       controller: _pinController,
@@ -157,7 +165,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 28),
 
-              _pinField(),
+              // _pinField(),
+              CommonTextField(
+                label: "Enter PIN",
+                controller: _pinController,
+                obscure: _obscurePin,
+                onToggle: () => setState(() => _obscurePin = !_obscurePin),
+                keyboardType: TextInputType.number,
+              ),
+
               spacing,
 
               SizedBox(

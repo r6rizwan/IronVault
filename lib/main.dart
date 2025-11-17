@@ -2,13 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:password_manager/core/autolock/auto_lock_provider.dart';
-import 'package:password_manager/core/theme/theme_provider.dart';
+import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/core/theme/theme_provider.dart';
 import 'features/auth/screens/setup_pin_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'core/secure_storage.dart';
 import 'core/utils/encryption_util.dart';
-
 import 'data/db/app_db.dart';
 import 'data/repositories/credential_repo.dart';
 
@@ -78,7 +77,7 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Password Manager',
+      title: 'IronVault',
       debugShowCheckedModeBanner: false,
 
       // LIGHT THEME
@@ -97,14 +96,33 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
             color: Colors.black87,
           ),
         ),
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: Colors.white),
+          bodyLarge: TextStyle(color: Colors.white),
+        ),
 
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.grey.shade200,
+          fillColor: const Color(0xFF2A2A2A),
+
+          // 🔥 Fix Text Color
+          hintStyle: TextStyle(color: Colors.grey.shade400),
+          labelStyle: const TextStyle(color: Colors.white70),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.blueAccent),
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide.none,
           ),
+
+          // Field text color
+          iconColor: Colors.white,
         ),
 
         cardColor: Colors.white,

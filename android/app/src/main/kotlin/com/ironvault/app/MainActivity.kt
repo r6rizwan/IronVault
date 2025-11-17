@@ -1,4 +1,4 @@
-package com.example.password_manager
+package com.ironvault.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

@@ -1,4 +1,4 @@
-name: password_manager
+name: ironvault
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -35,6 +35,8 @@ dependencies:
   file_picker: ^10.3.6
   flutter:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
   flutter_riverpod: ^3.0.3
   flutter_secure_storage: ^9.0.0
   local_auth: ^3.0.0
@@ -92,3 +94,25 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#1E1E1E"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
+  min_sdk_android: 23
+
+flutter_native_splash:
+  color: "#121212"        # Dark background
+  image: assets/icon/app_icon.png        # The icon you added earlier
+  android: true
+  ios: true
+  android_gravity: center
+  ios_content_mode: center
+
+  # Optional: Make the splash screen look better on devices with dark mode
+  color_dark: "#121212"
+  image_dark: assets/icon/app_icon.png
+
+  web: false

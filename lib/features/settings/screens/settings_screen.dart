@@ -2,10 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:password_manager/core/theme/theme_provider.dart';
-import 'package:password_manager/features/settings/about_screen.dart';
-import 'package:password_manager/features/settings/security_tips_screen.dart';
-import 'package:password_manager/main.dart';
+import 'package:ironvault/core/theme/theme_provider.dart';
+import 'package:ironvault/features/settings/about_screen.dart';
+import 'package:ironvault/features/settings/security_tips_screen.dart';
+import 'package:ironvault/main.dart';
 import 'change_pin_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
