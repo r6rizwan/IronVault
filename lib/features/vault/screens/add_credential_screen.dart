@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../main.dart';
+import 'package:ironvault/core/providers.dart';
 
 class AddCredentialScreen extends ConsumerStatefulWidget {
   const AddCredentialScreen({super.key});

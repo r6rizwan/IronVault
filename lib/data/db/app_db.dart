@@ -15,6 +15,10 @@ class Credentials extends Table {
   TextColumn get password => text()(); // encrypted
   TextColumn get notes => text().nullable()(); // encrypted
   TextColumn get category => text().nullable()(); // encrypted
+
+  /// ⭐ NEW COLUMN → Favorite / Pin Support
+  BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
+
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -27,7 +31,6 @@ LazyDatabase _openConnection() {
     final folder = await getApplicationDocumentsDirectory();
     final file = File(p.join(folder.path, 'vault.sqlite'));
 
-    // Drift uses platform SQLite (sqlite3_flutter_libs required)
     return NativeDatabase(file);
   });
 }
@@ -36,6 +39,18 @@ LazyDatabase _openConnection() {
 class AppDb extends _$AppDb {
   AppDb() : super(_openConnection());
 
+  /// 🔥 Bump schema version → Added isFavorite column
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  /// ⭐ Migration Logic
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from == 1) {
+        // Add new favorite column with default false
+        await m.addColumn(credentials, credentials.isFavorite);
+      }
+    },
+  );
 }

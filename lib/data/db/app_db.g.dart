@@ -69,6 +69,21 @@ class $CredentialsTable extends Credentials
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _isFavoriteMeta = const VerificationMeta(
+    'isFavorite',
+  );
+  @override
+  late final GeneratedColumn<bool> isFavorite = GeneratedColumn<bool>(
+    'is_favorite',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_favorite" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -99,6 +114,7 @@ class $CredentialsTable extends Credentials
     password,
     notes,
     category,
+    isFavorite,
     createdAt,
     updatedAt,
   ];
@@ -155,6 +171,12 @@ class $CredentialsTable extends Credentials
         category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
       );
     }
+    if (data.containsKey('is_favorite')) {
+      context.handle(
+        _isFavoriteMeta,
+        isFavorite.isAcceptableOrUnknown(data['is_favorite']!, _isFavoriteMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -204,6 +226,10 @@ class $CredentialsTable extends Credentials
         DriftSqlType.string,
         data['${effectivePrefix}category'],
       ),
+      isFavorite: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_favorite'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -228,6 +254,9 @@ class Credential extends DataClass implements Insertable<Credential> {
   final String password;
   final String? notes;
   final String? category;
+
+  /// ⭐ NEW COLUMN → Favorite / Pin Support
+  final bool isFavorite;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Credential({
@@ -237,6 +266,7 @@ class Credential extends DataClass implements Insertable<Credential> {
     required this.password,
     this.notes,
     this.category,
+    required this.isFavorite,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -253,6 +283,7 @@ class Credential extends DataClass implements Insertable<Credential> {
     if (!nullToAbsent || category != null) {
       map['category'] = Variable<String>(category);
     }
+    map['is_favorite'] = Variable<bool>(isFavorite);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -270,6 +301,7 @@ class Credential extends DataClass implements Insertable<Credential> {
       category: category == null && nullToAbsent
           ? const Value.absent()
           : Value(category),
+      isFavorite: Value(isFavorite),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -287,6 +319,7 @@ class Credential extends DataClass implements Insertable<Credential> {
       password: serializer.fromJson<String>(json['password']),
       notes: serializer.fromJson<String?>(json['notes']),
       category: serializer.fromJson<String?>(json['category']),
+      isFavorite: serializer.fromJson<bool>(json['isFavorite']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -301,6 +334,7 @@ class Credential extends DataClass implements Insertable<Credential> {
       'password': serializer.toJson<String>(password),
       'notes': serializer.toJson<String?>(notes),
       'category': serializer.toJson<String?>(category),
+      'isFavorite': serializer.toJson<bool>(isFavorite),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -313,6 +347,7 @@ class Credential extends DataClass implements Insertable<Credential> {
     String? password,
     Value<String?> notes = const Value.absent(),
     Value<String?> category = const Value.absent(),
+    bool? isFavorite,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Credential(
@@ -322,6 +357,7 @@ class Credential extends DataClass implements Insertable<Credential> {
     password: password ?? this.password,
     notes: notes.present ? notes.value : this.notes,
     category: category.present ? category.value : this.category,
+    isFavorite: isFavorite ?? this.isFavorite,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -333,6 +369,9 @@ class Credential extends DataClass implements Insertable<Credential> {
       password: data.password.present ? data.password.value : this.password,
       notes: data.notes.present ? data.notes.value : this.notes,
       category: data.category.present ? data.category.value : this.category,
+      isFavorite: data.isFavorite.present
+          ? data.isFavorite.value
+          : this.isFavorite,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -347,6 +386,7 @@ class Credential extends DataClass implements Insertable<Credential> {
           ..write('password: $password, ')
           ..write('notes: $notes, ')
           ..write('category: $category, ')
+          ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -361,6 +401,7 @@ class Credential extends DataClass implements Insertable<Credential> {
     password,
     notes,
     category,
+    isFavorite,
     createdAt,
     updatedAt,
   );
@@ -374,6 +415,7 @@ class Credential extends DataClass implements Insertable<Credential> {
           other.password == this.password &&
           other.notes == this.notes &&
           other.category == this.category &&
+          other.isFavorite == this.isFavorite &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -385,6 +427,7 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
   final Value<String> password;
   final Value<String?> notes;
   final Value<String?> category;
+  final Value<bool> isFavorite;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -395,6 +438,7 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     this.password = const Value.absent(),
     this.notes = const Value.absent(),
     this.category = const Value.absent(),
+    this.isFavorite = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -406,6 +450,7 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     required String password,
     this.notes = const Value.absent(),
     this.category = const Value.absent(),
+    this.isFavorite = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -422,6 +467,7 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     Expression<String>? password,
     Expression<String>? notes,
     Expression<String>? category,
+    Expression<bool>? isFavorite,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -433,6 +479,7 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
       if (password != null) 'password': password,
       if (notes != null) 'notes': notes,
       if (category != null) 'category': category,
+      if (isFavorite != null) 'is_favorite': isFavorite,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -446,6 +493,7 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     Value<String>? password,
     Value<String?>? notes,
     Value<String?>? category,
+    Value<bool>? isFavorite,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -457,6 +505,7 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
       password: password ?? this.password,
       notes: notes ?? this.notes,
       category: category ?? this.category,
+      isFavorite: isFavorite ?? this.isFavorite,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -484,6 +533,9 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (isFavorite.present) {
+      map['is_favorite'] = Variable<bool>(isFavorite.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -505,6 +557,7 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
           ..write('password: $password, ')
           ..write('notes: $notes, ')
           ..write('category: $category, ')
+          ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -532,6 +585,7 @@ typedef $$CredentialsTableCreateCompanionBuilder =
       required String password,
       Value<String?> notes,
       Value<String?> category,
+      Value<bool> isFavorite,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -544,6 +598,7 @@ typedef $$CredentialsTableUpdateCompanionBuilder =
       Value<String> password,
       Value<String?> notes,
       Value<String?> category,
+      Value<bool> isFavorite,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -585,6 +640,11 @@ class $$CredentialsTableFilterComposer
 
   ColumnFilters<String> get category => $composableBuilder(
     column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -638,6 +698,11 @@ class $$CredentialsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -675,6 +740,11 @@ class $$CredentialsTableAnnotationComposer
 
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<bool> get isFavorite => $composableBuilder(
+    column: $table.isFavorite,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -717,6 +787,7 @@ class $$CredentialsTableTableManager
                 Value<String> password = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String?> category = const Value.absent(),
+                Value<bool> isFavorite = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -727,6 +798,7 @@ class $$CredentialsTableTableManager
                 password: password,
                 notes: notes,
                 category: category,
+                isFavorite: isFavorite,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -739,6 +811,7 @@ class $$CredentialsTableTableManager
                 required String password,
                 Value<String?> notes = const Value.absent(),
                 Value<String?> category = const Value.absent(),
+                Value<bool> isFavorite = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -749,6 +822,7 @@ class $$CredentialsTableTableManager
                 password: password,
                 notes: notes,
                 category: category,
+                isFavorite: isFavorite,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

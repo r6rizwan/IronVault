@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/theme/theme_provider.dart';
 import 'package:ironvault/features/settings/about_screen.dart';
 import 'package:ironvault/features/settings/security_tips_screen.dart';
-import 'package:ironvault/main.dart';
+import 'package:ironvault/core/providers.dart';
 import 'change_pin_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {

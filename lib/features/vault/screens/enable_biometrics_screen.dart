@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
-import 'package:ironvault/main.dart';
+import 'package:ironvault/core/providers.dart';
 import '../../vault/screens/credential_list_screen.dart';
 
 class EnableBiometricsScreen extends ConsumerStatefulWidget {

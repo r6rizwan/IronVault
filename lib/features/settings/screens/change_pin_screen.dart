@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:ironvault/core/widgets/common_text_field.dart';
-import 'package:ironvault/main.dart';
+import 'package:ironvault/core/providers.dart';
 
 class ChangePinScreen extends ConsumerStatefulWidget {
   const ChangePinScreen({super.key});

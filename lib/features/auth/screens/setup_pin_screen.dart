@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:ironvault/core/widgets/common_text_field.dart';
 import 'package:ironvault/features/vault/screens/enable_biometrics_screen.dart';
-import 'package:ironvault/main.dart';
+import 'package:ironvault/core/providers.dart';
 
 class SetupMasterPinScreen extends ConsumerStatefulWidget {
   const SetupMasterPinScreen({super.key});
@@ -153,7 +153,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
               // ),
               CommonTextField(
                 label: "Confirm PIN",
-                controller: _pinController,
+                controller: _confirmController,
                 obscure: _obscure2,
                 onToggle: () => setState(() => _obscure2 = !_obscure2),
                 keyboardType: TextInputType.number,

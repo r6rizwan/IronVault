@@ -1,8 +1,10 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironvault/core/providers.dart';
+import 'edit_credential_screen.dart';
 
 class ViewCredentialScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> item;
@@ -15,19 +17,50 @@ class ViewCredentialScreen extends ConsumerStatefulWidget {
 }
 
 class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
+  late Map<String, dynamic> item;
+
   bool _showPassword = false;
-  bool _copied = false;
+  bool _copiedPassword = false;
+  bool _copiedUsername = false;
+
+  @override
+  void initState() {
+    super.initState();
+    item = Map<String, dynamic>.from(widget.item); // local copy so UI updates
+  }
 
   Future<void> _copyPassword() async {
-    final pwd = widget.item["password"] ?? "";
+    final pwd = item["password"] ?? "";
     await Clipboard.setData(ClipboardData(text: pwd));
 
-    setState(() => _copied = true);
+    setState(() => _copiedPassword = true);
 
-    // Auto clear clipboard
     Future.delayed(const Duration(seconds: 10), () async {
       await Clipboard.setData(const ClipboardData(text: ""));
-      if (mounted) setState(() => _copied = false);
+      if (mounted) setState(() => _copiedPassword = false);
+    });
+  }
+
+  Future<void> _copyUsername() async {
+    final username = item["username"] ?? "";
+    await Clipboard.setData(ClipboardData(text: username));
+
+    setState(() => _copiedUsername = true);
+
+    Future.delayed(const Duration(seconds: 10), () async {
+      await Clipboard.setData(const ClipboardData(text: ""));
+      if (mounted) setState(() => _copiedUsername = false);
+    });
+  }
+
+  Future<void> _toggleFavorite() async {
+    final repo = ref.read(credentialRepoProvider);
+    final newState = !(item["isFavorite"] == true);
+
+    await repo.toggleFavorite(item["id"], newState);
+
+    setState(() {
+      item["isFavorite"] = newState;
     });
   }
 
@@ -84,7 +117,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
+    final isFav = (item["isFavorite"] == true);
 
     return Scaffold(
       appBar: AppBar(
@@ -93,6 +126,73 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         elevation: 0,
+        actions: [
+          // ⭐ FAVORITE / PIN BUTTON
+          IconButton(
+            tooltip: isFav ? "Unpin" : "Mark as Favorite",
+            icon: Icon(
+              isFav ? Icons.star : Icons.star_border,
+              color: isFav ? Colors.amber : Colors.grey,
+              size: 26,
+            ),
+            onPressed: _toggleFavorite,
+          ),
+
+          // ✏ EDIT BUTTON
+          IconButton(
+            icon: const Icon(Icons.edit),
+            tooltip: "Edit",
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditCredentialScreen(item: item),
+                ),
+              );
+
+              if (mounted) Navigator.pop(context);
+            },
+          ),
+
+          // 🗑 DELETE BUTTON
+          IconButton(
+            icon: const Icon(Icons.delete),
+            tooltip: "Delete",
+            onPressed: () async {
+              final confirm = await showDialog(
+                context: context,
+                builder: (_) {
+                  return AlertDialog(
+                    title: const Text("Delete Credential"),
+                    content: const Text(
+                      "Are you sure you want to permanently delete this credential?",
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text("Cancel"),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          "Delete",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (confirm == true) {
+                final repo = ref.read(credentialRepoProvider);
+                await repo.deleteCredential(item["id"]);
+
+                if (mounted) Navigator.pop(context);
+              }
+            },
+          ),
+        ],
       ),
 
       body: SingleChildScrollView(
@@ -100,7 +200,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header card with icon + title
+            // Header card
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
@@ -112,11 +212,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                   CircleAvatar(
                     backgroundColor: Colors.blueAccent,
                     radius: 26,
-                    child: const Icon(
-                      Icons.lock,
-                      color: Colors.white,
-                      size: 28,
-                    ),
+                    child: const Icon(Icons.lock, color: Colors.white),
                   ),
                   const SizedBox(width: 18),
                   Expanded(
@@ -134,41 +230,47 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
 
             // Username
             _sectionTitle("Username / Email"),
-            _infoTile(value: item["username"]),
+            _infoTile(
+              value: item["username"] ?? "",
+              action: IconButton(
+                icon: Icon(
+                  _copiedUsername ? Icons.check : Icons.copy,
+                  color: _copiedUsername ? Colors.green : null,
+                  size: 22,
+                ),
+                onPressed: _copiedUsername ? null : _copyUsername,
+              ),
+            ),
 
-            // Password section
+            // Password
             _sectionTitle("Password"),
             _infoTile(
-              value: item["password"],
+              value: item["password"] ?? "",
               obscure: !_showPassword,
               action: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // show/hide icon
                   IconButton(
                     icon: Icon(
                       _showPassword ? Icons.visibility_off : Icons.visibility,
                       size: 22,
                     ),
-                    onPressed: () {
-                      setState(() => _showPassword = !_showPassword);
-                    },
+                    onPressed: () =>
+                        setState(() => _showPassword = !_showPassword),
                   ),
-
-                  // copy icon
                   IconButton(
                     icon: Icon(
-                      _copied ? Icons.check : Icons.copy,
-                      color: _copied ? Colors.green : null,
+                      _copiedPassword ? Icons.check : Icons.copy,
+                      color: _copiedPassword ? Colors.green : null,
                       size: 22,
                     ),
-                    onPressed: _copied ? null : _copyPassword,
+                    onPressed: _copiedPassword ? null : _copyPassword,
                   ),
                 ],
               ),
             ),
 
-            // Notes section
+            // Notes
             if (item["notes"] != null &&
                 item["notes"].toString().trim().isNotEmpty)
               Column(
