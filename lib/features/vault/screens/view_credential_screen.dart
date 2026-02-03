@@ -1,10 +1,15 @@
 // ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironvault/core/constants.dart';
+import 'package:ironvault/core/constants/item_types.dart';
 import 'package:ironvault/core/providers.dart';
-import 'edit_credential_screen.dart';
+import 'package:ironvault/features/add/screens/add_item_screen.dart';
+import 'package:ironvault/core/theme/app_tokens.dart';
 
 class ViewCredentialScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> item;
@@ -19,38 +24,59 @@ class ViewCredentialScreen extends ConsumerStatefulWidget {
 class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
   late Map<String, dynamic> item;
 
-  bool _showPassword = false;
-  bool _copiedPassword = false;
-  bool _copiedUsername = false;
+  String? _copiedKey;
+  Timer? _clipboardClearTimer;
+  String? _lastCopiedValue;
+  final Map<String, bool> _obscureFields = {};
 
   @override
   void initState() {
     super.initState();
     item = Map<String, dynamic>.from(widget.item); // local copy so UI updates
+    _initObscureStates();
   }
 
-  Future<void> _copyPassword() async {
-    final pwd = item["password"] ?? "";
-    await Clipboard.setData(ClipboardData(text: pwd));
-
-    setState(() => _copiedPassword = true);
-
-    Future.delayed(const Duration(seconds: 10), () async {
-      await Clipboard.setData(const ClipboardData(text: ""));
-      if (mounted) setState(() => _copiedPassword = false);
-    });
+  @override
+  void dispose() {
+    _clipboardClearTimer?.cancel();
+    super.dispose();
   }
 
-  Future<void> _copyUsername() async {
-    final username = item["username"] ?? "";
-    await Clipboard.setData(ClipboardData(text: username));
+  void _initObscureStates() {
+    final type = (item['type'] ?? 'password').toString();
+    final def = typeByKey(type);
+    for (final field in def.fields) {
+      if (field.obscure) {
+        _obscureFields[field.key] = true;
+      }
+    }
+  }
 
-    setState(() => _copiedUsername = true);
+  Future<void> _scheduleClipboardClear(String value) async {
+    _clipboardClearTimer?.cancel();
+    _lastCopiedValue = value;
 
-    Future.delayed(const Duration(seconds: 10), () async {
-      await Clipboard.setData(const ClipboardData(text: ""));
-      if (mounted) setState(() => _copiedUsername = false);
-    });
+    _clipboardClearTimer = Timer(
+      const Duration(seconds: AppConstants.clipboardClearSeconds),
+      () async {
+        try {
+          final data = await Clipboard.getData('text/plain');
+          if (data?.text == _lastCopiedValue) {
+            await Clipboard.setData(const ClipboardData(text: ""));
+          }
+        } catch (_) {}
+
+        if (mounted) {
+          setState(() => _copiedKey = null);
+        }
+      },
+    );
+  }
+
+  Future<void> _copyValue(String key, String value) async {
+    await Clipboard.setData(ClipboardData(text: value));
+    setState(() => _copiedKey = key);
+    await _scheduleClipboardClear(value);
   }
 
   Future<void> _toggleFavorite() async {
@@ -65,13 +91,14 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
   }
 
   Widget _sectionTitle(String title) {
+    final textMuted = AppThemeColors.textMuted(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 6, top: 16),
       child: Text(
         title.toUpperCase(),
         style: TextStyle(
-          fontSize: 13,
-          color: Colors.grey.shade600,
+          fontSize: 12,
+          color: textMuted,
           letterSpacing: 0.8,
           fontWeight: FontWeight.w600,
         ),
@@ -87,13 +114,13 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: 0.06),
           ),
         ],
       ),
@@ -118,6 +145,10 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
   @override
   Widget build(BuildContext context) {
     final isFav = (item["isFavorite"] == true);
+    final typeKey = (item["type"] ?? "password").toString();
+    final typeDef = typeByKey(typeKey);
+    final fields =
+        (item["fields"] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
 
     return Scaffold(
       appBar: AppBar(
@@ -127,7 +158,6 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
         ),
         elevation: 0,
         actions: [
-          // ⭐ FAVORITE / PIN BUTTON
           IconButton(
             tooltip: isFav ? "Unpin" : "Mark as Favorite",
             icon: Icon(
@@ -137,8 +167,6 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
             ),
             onPressed: _toggleFavorite,
           ),
-
-          // ✏ EDIT BUTTON
           IconButton(
             icon: const Icon(Icons.edit),
             tooltip: "Edit",
@@ -146,15 +174,13 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => EditCredentialScreen(item: item),
+                  builder: (_) => AddItemScreen(existingItem: item),
                 ),
               );
 
               if (mounted) Navigator.pop(context);
             },
           ),
-
-          // 🗑 DELETE BUTTON
           IconButton(
             icon: const Icon(Icons.delete),
             tooltip: "Delete",
@@ -163,9 +189,9 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                 context: context,
                 builder: (_) {
                   return AlertDialog(
-                    title: const Text("Delete Credential"),
+                    title: const Text("Delete Item"),
                     content: const Text(
-                      "Are you sure you want to permanently delete this credential?",
+                      "Are you sure you want to permanently delete this item?",
                     ),
                     actions: [
                       TextButton(
@@ -194,9 +220,8 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
           ),
         ],
       ),
-
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -204,15 +229,28 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.blueAccent.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(16),
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 18,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.12),
                     radius: 26,
-                    child: const Icon(Icons.lock, color: Colors.white),
+                    child: Icon(
+                      typeDef.icon,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(width: 18),
                   Expanded(
@@ -228,73 +266,83 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
               ),
             ),
 
-            // Username
-            _sectionTitle("Username / Email"),
-            _infoTile(
-              value: item["username"] ?? "",
-              action: IconButton(
-                icon: Icon(
-                  _copiedUsername ? Icons.check : Icons.copy,
-                  color: _copiedUsername ? Colors.green : null,
-                  size: 22,
-                ),
-                onPressed: _copiedUsername ? null : _copyUsername,
-              ),
-            ),
+            _sectionTitle("Type"),
+            _infoTile(value: typeDef.label),
 
-            // Password
-            _sectionTitle("Password"),
-            _infoTile(
-              value: item["password"] ?? "",
-              obscure: !_showPassword,
-              action: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      _showPassword ? Icons.visibility_off : Icons.visibility,
-                      size: 22,
-                    ),
-                    onPressed: () =>
-                        setState(() => _showPassword = !_showPassword),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      _copiedPassword ? Icons.check : Icons.copy,
-                      color: _copiedPassword ? Colors.green : null,
-                      size: 22,
-                    ),
-                    onPressed: _copiedPassword ? null : _copyPassword,
-                  ),
-                ],
-              ),
-            ),
+            ...typeDef.fields.map((field) {
+              if (field.key == 'scans') {
+                final raw = (fields['scans'] ?? '').toString();
+                if (raw.trim().isEmpty) return const SizedBox.shrink();
+                int count = 0;
+                try {
+                  final decoded = jsonDecode(raw);
+                  if (decoded is List) count = decoded.length;
+                } catch (_) {}
+                if (count == 0) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionTitle('Scanned Pages'),
+                    _infoTile(value: '$count page(s)'),
+                  ],
+                );
+              }
 
-            // Notes
-            if (item["notes"] != null &&
-                item["notes"].toString().trim().isNotEmpty)
-              Column(
+              final value = (fields[field.key] ?? '').toString();
+              if (value.trim().isEmpty) return const SizedBox.shrink();
+
+              final isObscure = field.obscure;
+              final obscureState = _obscureFields[field.key] ?? true;
+
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _sectionTitle("Notes"),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                          color: Colors.black.withOpacity(0.05),
+                  _sectionTitle(field.label),
+                  _infoTile(
+                    value: value,
+                    obscure: isObscure ? obscureState : false,
+                    action: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isObscure)
+                          IconButton(
+                            icon: Icon(
+                              obscureState
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              size: 22,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscureFields[field.key] = !obscureState;
+                              });
+                            },
+                          ),
+                        IconButton(
+                          icon: Icon(
+                            _copiedKey == field.key ? Icons.check : Icons.copy,
+                            color:
+                                _copiedKey == field.key ? Colors.green : null,
+                            size: 22,
+                          ),
+                          onPressed: _copiedKey == field.key
+                              ? null
+                              : () => _copyValue(field.key, value),
                         ),
                       ],
                     ),
-                    child: Text(
-                      item["notes"],
-                      style: const TextStyle(fontSize: 15, height: 1.4),
-                    ),
                   ),
+                ],
+              );
+            }),
+
+            if (item["category"] != null &&
+                item["category"].toString().trim().isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionTitle("Category"),
+                  _infoTile(value: item["category"]),
                 ],
               ),
           ],

@@ -14,15 +14,18 @@ final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   final SecureStorage storage;
 
-  ThemeModeNotifier(this.storage) : super(ThemeMode.system) {
+  ThemeModeNotifier(this.storage) : super(ThemeMode.light) {
     _loadTheme();
   }
 
   Future<void> _loadTheme() async {
     final mode = await storage.readValue("app_theme");
-    if (mode == "light") state = ThemeMode.light;
-    if (mode == "dark") state = ThemeMode.dark;
-    if (mode == "system" || mode == null) state = ThemeMode.system;
+    if (mode == "dark") {
+      state = ThemeMode.dark;
+    } else {
+      // Default to light if unset or any legacy value (including "system")
+      state = ThemeMode.light;
+    }
   }
 
   Future<void> setTheme(ThemeMode mode) async {
@@ -32,8 +35,6 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
       await storage.writeValue("app_theme", "light");
     } else if (mode == ThemeMode.dark) {
       await storage.writeValue("app_theme", "dark");
-    } else {
-      await storage.writeValue("app_theme", "system");
     }
   }
 }

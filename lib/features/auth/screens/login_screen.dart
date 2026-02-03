@@ -1,14 +1,21 @@
-// ignore_for_file: depend_on_referenced_packages, deprecated_member_use, use_build_context_synchronously
+// lib/features/auth/screens/login_screen.dart
+// ignore_for_file: depend_on_referenced_packages, use_build_context_synchronously, deprecated_member_use
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:local_auth/local_auth.dart';
-import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/providers.dart';
-import '../../vault/screens/credential_list_screen.dart';
+import 'package:ironvault/core/secure_storage.dart';
+import 'package:ironvault/features/navigation/app_scaffold.dart';
+
+import 'package:ironvault/core/navigation/global_nav.dart';
+import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/core/utils/pin_kdf.dart';
+import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
+import 'package:ironvault/core/theme/app_tokens.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -19,207 +26,232 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
-  final LocalAuthentication auth = LocalAuthentication();
-
-  // Four controllers / focus nodes for OTP style inputs
-  final List<TextEditingController> _controllers = List.generate(
+  final int pinLength = 4;
+  final List<TextEditingController> _pinCtrls = List.generate(
     4,
     (_) => TextEditingController(),
   );
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  final List<FocusNode> _pinNodes = List.generate(4, (_) => FocusNode());
 
-  bool biometricEnabled = false;
-  bool biometricAvailable = false;
+  // store listeners so we can remove them in dispose
+  final List<VoidCallback> _ctrlListeners = [];
 
   late AnimationController _shakeController;
-  final int pinLength = 4;
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _initBiometrics();
     _shakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
     );
 
-    // Attach listeners to each controller to handle auto-advance / auto-submit
+    // Attach listeners and keep references for proper disposal
     for (var i = 0; i < pinLength; i++) {
-      _controllers[i].addListener(() => _onDigitChanged(i));
+      void listener() => _onDigitChanged(i);
+      _ctrlListeners.add(listener);
+      _pinCtrls[i].addListener(listener);
     }
   }
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.removeListener(() {});
-      c.dispose();
+    // remove listeners
+    for (var i = 0; i < _pinCtrls.length; i++) {
+      if (i < _ctrlListeners.length) {
+        _pinCtrls[i].removeListener(_ctrlListeners[i]);
+      }
+      _pinCtrls[i].dispose();
     }
-    for (final f in _focusNodes) {
-      f.dispose();
+
+    for (final n in _pinNodes) {
+      n.dispose();
+    }
+
+    // stop any running animation and dispose
+    if (_shakeController.isAnimating) {
+      _shakeController.stop();
     }
     _shakeController.dispose();
+
     super.dispose();
   }
 
-  Future<void> _initBiometrics() async {
-    final storage = ref.read(secureStorageProvider);
-    biometricEnabled =
-        (await storage.readValue("biometrics_enabled") ?? "false") == "true";
-    biometricAvailable =
-        await auth.canCheckBiometrics && await auth.isDeviceSupported();
-    setState(() {});
+  String _collectPin() => _pinCtrls.map((c) => c.text).join();
+
+  Future<bool> _verifyPin(
+    String pin,
+    String stored,
+    SecureStorage storage,
+  ) async {
+    if (stored.contains(r'$')) {
+      return PinKdf.verifyPin(pin, stored);
+    }
+
+    // Legacy SHA256 hash (no salt) — verify then upgrade to PBKDF2.
+    final legacyHash = sha256.convert(utf8.encode(pin)).toString();
+    if (legacyHash == stored) {
+      await storage.writePinHash(PinKdf.hashPin(pin));
+      return true;
+    }
+    return false;
   }
 
-  String _getEnteredPin() {
-    return _controllers.map((c) => c.text).join();
-  }
-
-  String hashPin(String pin) => sha256.convert(utf8.encode(pin)).toString();
-
-  // Called when any digit changes
   void _onDigitChanged(int index) {
-    final text = _controllers[index].text;
-    if (text.length > 1) {
-      // If user pasted multiple characters into a field, distribute them
-      final paste = text;
-      _distributePaste(paste, startIndex: index);
+    final txt = _pinCtrls[index].text;
+
+    if (txt.length > 1) {
+      final digits = txt.replaceAll(RegExp(r'[^0-9]'), '');
+      for (var i = 0; i < digits.length && index + i < pinLength; i++) {
+        _pinCtrls[index + i].text = digits[i];
+      }
+      final next = index + digits.length;
+
+      if (next < pinLength) {
+        if (mounted) _pinNodes[next].requestFocus();
+      } else {
+        if (mounted) _pinNodes[pinLength - 1].requestFocus();
+        if (_collectPin().length == pinLength) _submitPin();
+      }
       return;
     }
 
-    if (text.isNotEmpty) {
-      // Move to next field if exists
+    if (txt.isNotEmpty) {
       if (index + 1 < pinLength) {
-        _focusNodes[index + 1].requestFocus();
+        if (mounted) _pinNodes[index + 1].requestFocus();
       } else {
-        // Last digit entered — attempt submit
-        if (_getEnteredPin().length == pinLength) {
-          _submitPin();
-        }
+        if (_collectPin().length == pinLength) _submitPin();
       }
     }
-    // If user cleared a field, keep focus here (backspace logic handled in RawKeyboard)
+
+    if (!mounted) return;
     setState(() {});
   }
 
-  // If user pastes multiple digits, distribute correctly across fields
-  void _distributePaste(String paste, {required int startIndex}) {
-    final digits = paste.replaceAll(RegExp(r'[^0-9]'), '');
-    for (var i = 0; i < digits.length && (startIndex + i) < pinLength; i++) {
-      _controllers[startIndex + i].text = digits[i];
-    }
-    // move focus to end or submit
-    final next = startIndex + digits.length;
-    if (next < pinLength) {
-      _focusNodes[next].requestFocus();
-    } else {
-      _focusNodes[pinLength - 1].requestFocus();
-      if (_getEnteredPin().length == pinLength) {
-        _submitPin();
-      }
-    }
-  }
-
   Future<void> _submitPin() async {
-    final pin = _getEnteredPin();
+    final pin = _collectPin();
+    if (pin.length < pinLength) return;
+
+    if (mounted) {
+      setState(() => _loading = true);
+    }
+
     final storage = ref.read(secureStorageProvider);
     final savedHash = await storage.readPinHash();
+    if (savedHash == null) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      return;
+    }
 
-    if (hashPin(pin) == savedHash) {
+    // small delay so digits render fully
+    await Future.delayed(const Duration(milliseconds: 120));
+
+    final ok = await _verifyPin(pin, savedHash, storage);
+    if (ok) {
+      // unlock provider first
       ref.read(autoLockProvider.notifier).unlock();
+
+      // allow state to propagate
+      await Future.delayed(const Duration(milliseconds: 60));
+
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const CredentialListScreen()),
+
+      // Navigate away and return immediately — do not call setState after this
+      navKey.currentState?.pushReplacement(
+        MaterialPageRoute(builder: (_) => const AppScaffold()),
       );
+      return;
     } else {
-      // wrong PIN — shake + clear
+      // wrong PIN — animate + clear
       _playWrongPinAnimation();
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Invalid PIN")));
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Invalid PIN")));
+      }
+
       _clearAll();
+    }
+
+    // make sure widget still mounted before updating loading state
+    if (!mounted) return;
+    setState(() => _loading = false);
+  }
+
+  void _clearAll() {
+    for (final c in _pinCtrls) {
+      c.clear();
+    }
+    if (mounted) {
+      _pinNodes[0].requestFocus();
+      setState(() {});
     }
   }
 
   void _playWrongPinAnimation() {
-    _shakeController.forward(from: 0.0);
-  }
-
-  void _clearAll() {
-    for (final c in _controllers) {
-      c.clear();
-    }
-    _focusNodes[0].requestFocus();
-    setState(() {});
-  }
-
-  Future<void> _useBiometrics() async {
+    if (!mounted) return;
+    // guard in case controller disposed
     try {
-      final ok = await auth.authenticate(
-        localizedReason: "Unlock IronVault",
-        biometricOnly: true,
-      );
-      if (!ok) return;
-      ref.read(autoLockProvider.notifier).unlock();
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const CredentialListScreen()),
-      );
-    } catch (_) {}
+      _shakeController.forward(from: 0.0);
+    } catch (_) {
+      // ignore if disposed
+    }
   }
 
-  // Widget building helpers
-  Widget _buildOtpField(int index) {
+  Widget _otpBox({required int index}) {
+    final filled = _pinCtrls[index].text.isNotEmpty;
+
     return SizedBox(
-      width: 58,
+      width: 64,
       child: RawKeyboardListener(
-        focusNode: FocusNode(), // needed for backspace detection
+        focusNode: FocusNode(),
         onKey: (ev) {
           if (ev is RawKeyDownEvent &&
               ev.logicalKey == LogicalKeyboardKey.backspace) {
-            final text = _controllers[index].text;
-            if (text.isEmpty && index > 0) {
-              _focusNodes[index - 1].requestFocus();
-              _controllers[index - 1].clear();
+            if (_pinCtrls[index].text.isEmpty && index > 0) {
+              _pinCtrls[index - 1].clear();
+              if (mounted) _pinNodes[index - 1].requestFocus();
             }
           }
         },
         child: TextField(
-          controller: _controllers[index],
-          focusNode: _focusNodes[index],
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            letterSpacing: 4,
-          ),
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          controller: _pinCtrls[index],
+          focusNode: _pinNodes[index],
           maxLength: 1,
+          textAlign: TextAlign.center,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
           decoration: InputDecoration(
             counterText: "",
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.white24, width: 2),
+            filled: true,
+            fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: filled
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey.shade400,
+                width: 1.4,
+              ),
             ),
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.blueAccent, width: 2.4),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Colors.blueAccent,
+                width: 1.8,
+              ),
             ),
-            filled: false,
-            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
           ),
           cursorColor: Colors.blueAccent,
-          onTap: () {
-            // selectAll is not necessary for single char; do nothing
-          },
-          onChanged: (v) {
-            // handled by controller listeners; keep for safety
-            if (v.length > 1) {
-              _distributePaste(v, startIndex: index);
-            }
-          },
         ),
       ),
     );
@@ -227,186 +259,114 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    const gradientStart = Color(0xFF0A0F1F);
-    const gradientEnd = Color(0xFF1A2235);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppThemeColors.text(context);
+    final textMuted = AppThemeColors.textMuted(context);
+    final bgGradient = LinearGradient(
+      colors: isDark
+          ? [const Color(0xFF0B0F1A), const Color(0xFF121826)]
+          : [const Color(0xFFF7FAFF), const Color(0xFFEAF2FF)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [gradientStart, gradientEnd],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: 28),
+      body: Container(
+        decoration: BoxDecoration(gradient: bgGradient),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 32),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 4),
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                      child: Icon(
+                        Icons.lock_outline,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Enter your PIN",
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(color: textColor),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "Unlock IronVault",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
 
-                // App Logo (top) - replace with your Image.asset or similar
-                // Keep it tappable / adaptive
-                SizedBox(
-                  height: 96,
-                  child: Center(
-                    child: Column(
+                    AnimatedBuilder(
+                      animation: _shakeController,
+                      builder: (context, child) {
+                        final progress = _shakeController.value;
+                        final offset = progress > 0
+                            ? (8 * (1 - (progress * 2 - 1).abs()))
+                            : 0.0;
+
+                        return Transform.translate(
+                          offset: Offset(offset * (progress > 0.5 ? -1 : 1), 0),
+                          child: child,
+                        );
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(pinLength, (i) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: _otpBox(index: i),
+                          );
+                        }),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    Row(
                       children: [
-                        // Replace with your actual logo widget
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: Colors.white12,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(
-                            Icons.vpn_key,
-                            color: Colors.blueAccent,
-                            size: 36,
-                          ),
+                        TextButton(
+                          onPressed: () {
+                            navKey.currentState?.pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => const AuthChoiceScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text("Forgot PIN?"),
                         ),
-                        const SizedBox(height: 8),
+                        const Spacer(),
                       ],
                     ),
-                  ),
+
+                    if (_loading) const CircularProgressIndicator(),
+                  ],
                 ),
-
-                const SizedBox(height: 6),
-
-                // Title
-                const Text(
-                  "Enter your PIN",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 26),
-
-                // OTP fields with shake animation
-                AnimatedBuilder(
-                  animation: _shakeController,
-                  builder: (context, child) {
-                    final progress = _shakeController.value;
-                    // small horizontal shake from -8..8 when animating
-                    final offsetX = (progress > 0)
-                        ? (8 * (1 - (progress * 2 - 1).abs())) // easing
-                        : 0.0;
-                    return Transform.translate(
-                      offset: Offset(offsetX * (progress > 0.5 ? -1 : 1), 0),
-                      child: child,
-                    );
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      pinLength,
-                      (i) => _buildOtpField(i),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Row: Forgot PIN (left) + empty spacer + (biometric centered below)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 34.0),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () async {
-                          // Provide an entrypoint for resetting PIN using biometrics
-                          // We'll attempt biometric auth and then navigate to a "Reset PIN" flow.
-                          // For now, reuse biometric logic: if biometric ok -> clear saved PIN and prompt flow elsewhere.
-                          // You can replace this with your reset flow screen.
-                          if (!biometricAvailable || !biometricEnabled) {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Biometrics not available"),
-                              ),
-                            );
-                            return;
-                          }
-
-                          try {
-                            final ok = await auth.authenticate(
-                              localizedReason: "Authenticate to reset PIN",
-                              biometricOnly: true,
-                            );
-                            if (!ok) return;
-                            // Here you should open a reset-pin screen / flow.
-                            // For demo, we will clear stored pin hash so user can set a new one in your onboarding.
-                            final storage = ref.read(secureStorageProvider);
-                            await storage.deletePinHash();
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("You can now set a new PIN"),
-                              ),
-                            );
-                          } catch (_) {
-                            // ignore
-                          }
-                        },
-                        child: const Text(
-                          "Forgot PIN?",
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ),
-                      const Spacer(),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Biometric button (centered)
-                if (biometricAvailable && biometricEnabled)
-                  Center(
-                    child: GestureDetector(
-                      onTap: _useBiometrics,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white12,
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: Colors.blueAccent.withOpacity(0.9),
-                            width: 1.4,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(
-                              Icons.fingerprint_rounded,
-                              color: Colors.blueAccent,
-                            ),
-                            SizedBox(width: 10),
-                            Text(
-                              "Use biometric",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // small bottom spacing
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
           ),
         ),

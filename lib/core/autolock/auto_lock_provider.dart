@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
 
@@ -7,75 +6,56 @@ final autoLockProvider = NotifierProvider<AutoLockController, bool>(
 );
 
 class AutoLockController extends Notifier<bool> {
-  Timer? _timer;
-
-  DateTime? _lastPausedTime; // NEW: store timestamp of background event
-  int _autoLockSeconds = 0; // NEW: cache the setting
+  DateTime? _pausedAt;
+  static const int _minBackgroundSeconds = 2;
 
   @override
   bool build() {
-    _loadSettings();
-    return false; // unlocked initially
+    return false; // unlocked by default
   }
 
-  /// Load auto-lock settings once
-  Future<void> _loadSettings() async {
-    final storage = ref.read(secureStorageProvider);
-    final timerValue =
-        await storage.readValue("auto_lock_timer") ?? "immediately";
-
-    if (timerValue == "immediately") {
-      _autoLockSeconds = 0;
-    } else {
-      _autoLockSeconds = int.tryParse(timerValue) ?? 0;
-    }
-  }
-
-  /// Called when app goes to background
+  /// Called when app goes inactive OR paused
   void markPaused() {
-    _lastPausedTime = DateTime.now();
-    cancelTimer();
+    _pausedAt = DateTime.now();
+  }
 
-    if (_autoLockSeconds == 0) {
-      // immediately lock
-      state = true;
+  /// Decide if app should lock when resumed
+  Future<void> evaluateLockOnResume() async {
+    final storage = ref.read(secureStorageProvider);
+    final timer = await storage.readValue("auto_lock_timer") ?? "immediately";
+
+    if (_pausedAt == null) return;
+    final elapsed = DateTime.now().difference(_pausedAt!).inSeconds;
+    if (elapsed < _minBackgroundSeconds) {
+      _resetPauseState();
       return;
     }
 
-    // Start timer for delayed auto-lock
-    _timer = Timer(Duration(seconds: _autoLockSeconds), () {
+    if (timer == "immediately") {
       state = true;
-    });
-  }
-
-  /// Called when the app resumes
-  void evaluateLockOnResume() {
-    cancelTimer();
-
-    if (state == true) return; // already locked -> do nothing
-
-    if (_autoLockSeconds == 0) {
-      // lock instantly
-      state = true;
+      _resetPauseState();
       return;
     }
 
-    if (_lastPausedTime == null) return; // first run, ignore
-
-    final diff = DateTime.now().difference(_lastPausedTime!);
-
-    if (diff.inSeconds >= _autoLockSeconds) {
-      state = true; // lock because timer expired
+    final seconds = int.tryParse(timer);
+    if (seconds == null || _pausedAt == null) {
+      _resetPauseState();
+      return;
     }
+
+    if (elapsed >= seconds) {
+      state = true;
+    }
+
+    _resetPauseState();
   }
 
-  void cancelTimer() {
-    _timer?.cancel();
-    _timer = null;
-  }
-
+  /// Manual unlock
   void unlock() {
     state = false;
-    cancelTimer();
+  }
+
+  void _resetPauseState() {
+    _pausedAt = null;
   }
 }

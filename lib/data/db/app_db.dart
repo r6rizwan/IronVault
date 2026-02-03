@@ -15,6 +15,9 @@ class Credentials extends Table {
   TextColumn get password => text()(); // encrypted
   TextColumn get notes => text().nullable()(); // encrypted
   TextColumn get category => text().nullable()(); // encrypted
+  TextColumn get itemType =>
+      text().withDefault(const Constant('password'))(); // plaintext
+  TextColumn get data => text().nullable()(); // encrypted JSON
 
   /// ⭐ NEW COLUMN → Favorite / Pin Support
   BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
@@ -41,7 +44,7 @@ class AppDb extends _$AppDb {
 
   /// 🔥 Bump schema version → Added isFavorite column
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   /// ⭐ Migration Logic
   @override
@@ -50,6 +53,10 @@ class AppDb extends _$AppDb {
       if (from == 1) {
         // Add new favorite column with default false
         await m.addColumn(credentials, credentials.isFavorite);
+      }
+      if (from <= 2) {
+        await m.addColumn(credentials, credentials.itemType);
+        await m.addColumn(credentials, credentials.data);
       }
     },
   );

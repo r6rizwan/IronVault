@@ -40,9 +40,6 @@ class IronSearchBarState extends State<IronSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade200;
-
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _expand, // tap anywhere in the whole bar to expand
@@ -50,7 +47,7 @@ class IronSearchBarState extends State<IronSearchBar> {
         duration: const Duration(milliseconds: 250),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: bgColor,
+          color: Theme.of(context).inputDecorationTheme.fillColor,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -70,16 +67,8 @@ class IronSearchBarState extends State<IronSearchBar> {
                           widget.onChanged(value);
                           setState(() {}); // update collapse logic
                         },
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black,
-                        ),
                         decoration: InputDecoration(
                           hintText: "Search...",
-                          hintStyle: TextStyle(
-                            color: isDark
-                                ? Colors.grey.shade500
-                                : Colors.grey.shade600,
-                          ),
                           border: InputBorder.none,
                         ),
                       )

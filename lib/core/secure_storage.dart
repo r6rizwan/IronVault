@@ -1,7 +1,15 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SecureStorage {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.unlocked,
+    ),
+    mOptions: MacOsOptions(
+      accessibility: KeychainAccessibility.unlocked,
+    ),
+  );
 
   static const _masterKeyKey = 'master_key_vault';
   static const _pinHashKey = 'master_pin_hash';

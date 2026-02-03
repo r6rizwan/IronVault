@@ -69,6 +69,27 @@ class $CredentialsTable extends Credentials
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _itemTypeMeta = const VerificationMeta(
+    'itemType',
+  );
+  @override
+  late final GeneratedColumn<String> itemType = GeneratedColumn<String>(
+    'item_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('password'),
+  );
+  static const VerificationMeta _dataMeta = const VerificationMeta('data');
+  @override
+  late final GeneratedColumn<String> data = GeneratedColumn<String>(
+    'data',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isFavoriteMeta = const VerificationMeta(
     'isFavorite',
   );
@@ -114,6 +135,8 @@ class $CredentialsTable extends Credentials
     password,
     notes,
     category,
+    itemType,
+    data,
     isFavorite,
     createdAt,
     updatedAt,
@@ -171,6 +194,18 @@ class $CredentialsTable extends Credentials
         category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
       );
     }
+    if (data.containsKey('item_type')) {
+      context.handle(
+        _itemTypeMeta,
+        itemType.isAcceptableOrUnknown(data['item_type']!, _itemTypeMeta),
+      );
+    }
+    if (data.containsKey('data')) {
+      context.handle(
+        _dataMeta,
+        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    }
     if (data.containsKey('is_favorite')) {
       context.handle(
         _isFavoriteMeta,
@@ -226,6 +261,14 @@ class $CredentialsTable extends Credentials
         DriftSqlType.string,
         data['${effectivePrefix}category'],
       ),
+      itemType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_type'],
+      )!,
+      data: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data'],
+      ),
       isFavorite: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_favorite'],
@@ -254,6 +297,8 @@ class Credential extends DataClass implements Insertable<Credential> {
   final String password;
   final String? notes;
   final String? category;
+  final String itemType;
+  final String? data;
 
   /// ⭐ NEW COLUMN → Favorite / Pin Support
   final bool isFavorite;
@@ -266,6 +311,8 @@ class Credential extends DataClass implements Insertable<Credential> {
     required this.password,
     this.notes,
     this.category,
+    required this.itemType,
+    this.data,
     required this.isFavorite,
     required this.createdAt,
     required this.updatedAt,
@@ -282,6 +329,10 @@ class Credential extends DataClass implements Insertable<Credential> {
     }
     if (!nullToAbsent || category != null) {
       map['category'] = Variable<String>(category);
+    }
+    map['item_type'] = Variable<String>(itemType);
+    if (!nullToAbsent || data != null) {
+      map['data'] = Variable<String>(data);
     }
     map['is_favorite'] = Variable<bool>(isFavorite);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -301,6 +352,8 @@ class Credential extends DataClass implements Insertable<Credential> {
       category: category == null && nullToAbsent
           ? const Value.absent()
           : Value(category),
+      itemType: Value(itemType),
+      data: data == null && nullToAbsent ? const Value.absent() : Value(data),
       isFavorite: Value(isFavorite),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -319,6 +372,8 @@ class Credential extends DataClass implements Insertable<Credential> {
       password: serializer.fromJson<String>(json['password']),
       notes: serializer.fromJson<String?>(json['notes']),
       category: serializer.fromJson<String?>(json['category']),
+      itemType: serializer.fromJson<String>(json['itemType']),
+      data: serializer.fromJson<String?>(json['data']),
       isFavorite: serializer.fromJson<bool>(json['isFavorite']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -334,6 +389,8 @@ class Credential extends DataClass implements Insertable<Credential> {
       'password': serializer.toJson<String>(password),
       'notes': serializer.toJson<String?>(notes),
       'category': serializer.toJson<String?>(category),
+      'itemType': serializer.toJson<String>(itemType),
+      'data': serializer.toJson<String?>(data),
       'isFavorite': serializer.toJson<bool>(isFavorite),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -347,6 +404,8 @@ class Credential extends DataClass implements Insertable<Credential> {
     String? password,
     Value<String?> notes = const Value.absent(),
     Value<String?> category = const Value.absent(),
+    String? itemType,
+    Value<String?> data = const Value.absent(),
     bool? isFavorite,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -357,6 +416,8 @@ class Credential extends DataClass implements Insertable<Credential> {
     password: password ?? this.password,
     notes: notes.present ? notes.value : this.notes,
     category: category.present ? category.value : this.category,
+    itemType: itemType ?? this.itemType,
+    data: data.present ? data.value : this.data,
     isFavorite: isFavorite ?? this.isFavorite,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -369,6 +430,8 @@ class Credential extends DataClass implements Insertable<Credential> {
       password: data.password.present ? data.password.value : this.password,
       notes: data.notes.present ? data.notes.value : this.notes,
       category: data.category.present ? data.category.value : this.category,
+      itemType: data.itemType.present ? data.itemType.value : this.itemType,
+      data: data.data.present ? data.data.value : this.data,
       isFavorite: data.isFavorite.present
           ? data.isFavorite.value
           : this.isFavorite,
@@ -386,6 +449,8 @@ class Credential extends DataClass implements Insertable<Credential> {
           ..write('password: $password, ')
           ..write('notes: $notes, ')
           ..write('category: $category, ')
+          ..write('itemType: $itemType, ')
+          ..write('data: $data, ')
           ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -401,6 +466,8 @@ class Credential extends DataClass implements Insertable<Credential> {
     password,
     notes,
     category,
+    itemType,
+    data,
     isFavorite,
     createdAt,
     updatedAt,
@@ -415,6 +482,8 @@ class Credential extends DataClass implements Insertable<Credential> {
           other.password == this.password &&
           other.notes == this.notes &&
           other.category == this.category &&
+          other.itemType == this.itemType &&
+          other.data == this.data &&
           other.isFavorite == this.isFavorite &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -427,6 +496,8 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
   final Value<String> password;
   final Value<String?> notes;
   final Value<String?> category;
+  final Value<String> itemType;
+  final Value<String?> data;
   final Value<bool> isFavorite;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -438,6 +509,8 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     this.password = const Value.absent(),
     this.notes = const Value.absent(),
     this.category = const Value.absent(),
+    this.itemType = const Value.absent(),
+    this.data = const Value.absent(),
     this.isFavorite = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -450,6 +523,8 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     required String password,
     this.notes = const Value.absent(),
     this.category = const Value.absent(),
+    this.itemType = const Value.absent(),
+    this.data = const Value.absent(),
     this.isFavorite = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -467,6 +542,8 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     Expression<String>? password,
     Expression<String>? notes,
     Expression<String>? category,
+    Expression<String>? itemType,
+    Expression<String>? data,
     Expression<bool>? isFavorite,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -479,6 +556,8 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
       if (password != null) 'password': password,
       if (notes != null) 'notes': notes,
       if (category != null) 'category': category,
+      if (itemType != null) 'item_type': itemType,
+      if (data != null) 'data': data,
       if (isFavorite != null) 'is_favorite': isFavorite,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -493,6 +572,8 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     Value<String>? password,
     Value<String?>? notes,
     Value<String?>? category,
+    Value<String>? itemType,
+    Value<String?>? data,
     Value<bool>? isFavorite,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -505,6 +586,8 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
       password: password ?? this.password,
       notes: notes ?? this.notes,
       category: category ?? this.category,
+      itemType: itemType ?? this.itemType,
+      data: data ?? this.data,
       isFavorite: isFavorite ?? this.isFavorite,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -533,6 +616,12 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (itemType.present) {
+      map['item_type'] = Variable<String>(itemType.value);
+    }
+    if (data.present) {
+      map['data'] = Variable<String>(data.value);
+    }
     if (isFavorite.present) {
       map['is_favorite'] = Variable<bool>(isFavorite.value);
     }
@@ -557,6 +646,8 @@ class CredentialsCompanion extends UpdateCompanion<Credential> {
           ..write('password: $password, ')
           ..write('notes: $notes, ')
           ..write('category: $category, ')
+          ..write('itemType: $itemType, ')
+          ..write('data: $data, ')
           ..write('isFavorite: $isFavorite, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -585,6 +676,8 @@ typedef $$CredentialsTableCreateCompanionBuilder =
       required String password,
       Value<String?> notes,
       Value<String?> category,
+      Value<String> itemType,
+      Value<String?> data,
       Value<bool> isFavorite,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -598,6 +691,8 @@ typedef $$CredentialsTableUpdateCompanionBuilder =
       Value<String> password,
       Value<String?> notes,
       Value<String?> category,
+      Value<String> itemType,
+      Value<String?> data,
       Value<bool> isFavorite,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -640,6 +735,16 @@ class $$CredentialsTableFilterComposer
 
   ColumnFilters<String> get category => $composableBuilder(
     column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemType => $composableBuilder(
+    column: $table.itemType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get data => $composableBuilder(
+    column: $table.data,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -698,6 +803,16 @@ class $$CredentialsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get itemType => $composableBuilder(
+    column: $table.itemType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isFavorite => $composableBuilder(
     column: $table.isFavorite,
     builder: (column) => ColumnOrderings(column),
@@ -740,6 +855,12 @@ class $$CredentialsTableAnnotationComposer
 
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get itemType =>
+      $composableBuilder(column: $table.itemType, builder: (column) => column);
+
+  GeneratedColumn<String> get data =>
+      $composableBuilder(column: $table.data, builder: (column) => column);
 
   GeneratedColumn<bool> get isFavorite => $composableBuilder(
     column: $table.isFavorite,
@@ -787,6 +908,8 @@ class $$CredentialsTableTableManager
                 Value<String> password = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String?> category = const Value.absent(),
+                Value<String> itemType = const Value.absent(),
+                Value<String?> data = const Value.absent(),
                 Value<bool> isFavorite = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -798,6 +921,8 @@ class $$CredentialsTableTableManager
                 password: password,
                 notes: notes,
                 category: category,
+                itemType: itemType,
+                data: data,
                 isFavorite: isFavorite,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -811,6 +936,8 @@ class $$CredentialsTableTableManager
                 required String password,
                 Value<String?> notes = const Value.absent(),
                 Value<String?> category = const Value.absent(),
+                Value<String> itemType = const Value.absent(),
+                Value<String?> data = const Value.absent(),
                 Value<bool> isFavorite = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -822,6 +949,8 @@ class $$CredentialsTableTableManager
                 password: password,
                 notes: notes,
                 category: category,
+                itemType: itemType,
+                data: data,
                 isFavorite: isFavorite,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

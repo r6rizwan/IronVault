@@ -2,10 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/providers.dart';
-import '../../vault/screens/credential_list_screen.dart';
+import 'package:ironvault/core/theme/app_tokens.dart';
 
 class EnableBiometricsScreen extends ConsumerStatefulWidget {
   const EnableBiometricsScreen({super.key});
@@ -94,7 +95,7 @@ class _EnableBiometricsScreenState
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const CredentialListScreen()),
+          MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -121,7 +122,7 @@ class _EnableBiometricsScreenState
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const CredentialListScreen()),
+      MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
     );
   }
 
@@ -131,85 +132,84 @@ class _EnableBiometricsScreenState
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textMuted = AppThemeColors.textMuted(context);
+    final bgGradient = LinearGradient(
+      colors: isDark
+          ? [const Color(0xFF0B0F1A), const Color(0xFF121826)]
+          : [const Color(0xFFF7FAFF), const Color(0xFFEAF2FF)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Biometric Unlock"), elevation: 0),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-
-              // Header Icon
-              CircleAvatar(
-                radius: 45,
-                backgroundColor: Colors.blueAccent,
-                child: Icon(Icons.fingerprint, size: 50, color: Colors.white),
-              ),
-
-              const SizedBox(height: 20),
-
-              const Text(
-                "Enable Quick Unlock",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-
-              Text(
-                _supported
-                    ? "Use your fingerprint or Face ID to quickly access your vault."
-                    : "Your device does not support biometric authentication.",
-                style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 30),
-
-              // If biometrics supported
-              if (_supported)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _enableBiometrics,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+      appBar: AppBar(title: const Text("Biometric Unlock")),
+      body: Container(
+        decoration: BoxDecoration(gradient: bgGradient),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 36,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                      child: Icon(
+                        Icons.fingerprint,
+                        size: 36,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
-                    child: const Text(
-                      "Enable Biometrics",
+                    const SizedBox(height: 16),
+                    Text(
+                      "Enable Quick Unlock",
+                      style: Theme.of(context).textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _supported
+                          ? "Use fingerprint or face to access your vault."
+                          : "Your device does not support biometrics.",
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: textMuted,
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                ),
-
-              const SizedBox(height: 12),
-
-              // Skip button
-              TextButton(
-                onPressed: _skip,
-                child: const Text(
-                  "Skip for now",
-                  style: TextStyle(fontSize: 16),
+                    const SizedBox(height: 24),
+                    if (_supported)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _enableBiometrics,
+                          child: const Text("Enable Biometrics"),
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: _skip,
+                      child: const Text("Skip for now"),
+                    ),
+                  ],
                 ),
               ),
-
-              const Spacer(),
-
-              // Info footer
-              Text(
-                "You can always enable biometrics later in settings.",
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 10),
-            ],
+            ),
           ),
         ),
       ),

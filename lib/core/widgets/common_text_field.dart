@@ -7,6 +7,8 @@ class CommonTextField extends StatelessWidget {
   final Widget? suffix;
   final TextInputType keyboardType;
   final VoidCallback? onToggle;
+  final Iterable<String>? autofillHints;
+  final int maxLines;
 
   const CommonTextField({
     super.key,
@@ -16,20 +18,20 @@ class CommonTextField extends StatelessWidget {
     this.suffix,
     this.keyboardType = TextInputType.text,
     this.onToggle,
+    this.autofillHints,
+    this.maxLines = 1,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: TextStyle(
-            color: isDark ? Colors.white70 : Colors.black87,
-            fontSize: 14,
+            color: Theme.of(context).textTheme.bodyMedium?.color,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -38,44 +40,19 @@ class CommonTextField extends StatelessWidget {
           controller: controller,
           obscureText: obscure,
           keyboardType: keyboardType,
+          autofillHints: autofillHints,
+          maxLines: maxLines,
           style: TextStyle(
-            color: isDark ? Colors.white : Colors.black,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
             fontSize: 16,
           ),
           decoration: InputDecoration(
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 14,
-              horizontal: 16,
-            ),
-            filled: true,
-            fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade200,
-
-            hintStyle: TextStyle(
-              color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
-            ),
-
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: Colors.blueAccent,
-                width: 1.5,
-              ),
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-
             suffixIcon:
                 suffix ??
                 (onToggle != null
                     ? IconButton(
                         icon: Icon(
                           obscure ? Icons.visibility : Icons.visibility_off,
-                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                         onPressed: onToggle,
                       )

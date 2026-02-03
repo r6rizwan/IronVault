@@ -82,16 +82,50 @@ class _BiometricUnlockState extends ConsumerState<BiometricUnlock> {
     return Scaffold(
       appBar: AppBar(title: const Text("Biometric Unlock")),
       body: Center(
-        child: _error != null
-            ? Text(
-                _error!,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 14,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor:
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+                child: Icon(
+                  Icons.fingerprint,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _error ?? "Authenticate with biometrics",
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Colors.red),
-              )
-            : ElevatedButton(
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: _error != null ? Colors.red : null,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
                 onPressed: _authenticate,
                 child: const Text("Try Again"),
               ),
+            ],
+          ),
+        ),
       ),
     );
   }

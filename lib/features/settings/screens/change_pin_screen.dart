@@ -107,10 +107,47 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text("Change Master PIN")),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         child: Column(
           children: [
-            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.12),
+                    child: Icon(
+                      Icons.lock_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      "Update your master PIN",
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
 
             // _pinField(
             //   controller: _oldPinController,
@@ -151,7 +188,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
             //   onToggle: () => setState(() => _showConfirm = !_showConfirm),
             // ),
             CommonTextField(
-              label: "Enter PIN",
+              label: "Confirm New PIN",
               controller: _confirmPinController,
               obscure: !_showConfirm,
               onToggle: () => setState(() => _showConfirm = !_showConfirm),

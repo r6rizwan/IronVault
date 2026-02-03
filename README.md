@@ -1,16 +1,81 @@
-# ironvault
+# IronVault Password Manager
 
-A new Flutter project.
+A modern, offline-first password manager built with Flutter. IronVault stores all vault items locally with AES-256 encryption and supports PIN + biometric authentication.
 
-## Getting Started
+## Highlights
+- Offline-first: all data stored locally on device
+- AES-256 encryption for every item
+- Master PIN + optional biometrics
+- Dynamic item types (passwords, cards, banks, notes, documents)
+- Document scanning (Android)
+- Categories and favorites
+- Password health checks
+- In-app update prompt via GitHub Releases
 
-This project is a starting point for a Flutter application.
+## Screens & Flow
+1. Splash → Onboarding
+2. Create Master PIN (first install only)
+3. Enable biometrics (optional)
+4. Auth choice: PIN or biometrics
+5. Home → Vault / Search / Settings
 
-A few resources to get you started if this is your first Flutter project:
+## Tech Stack
+- Flutter
+- Riverpod
+- Drift (SQLite)
+- flutter_secure_storage
+- local_auth
+- encrypt (AES-GCM)
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Setup
+```bash
+flutter pub get
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Build (Android)
+```bash
+flutter build apk --release
+```
+
+APK output:
+```
+build/app/outputs/flutter-apk/app-release.apk
+```
+
+## GitHub Releases Update Flow
+IronVault checks your GitHub Releases and shows a soft update prompt if a newer version is available.
+
+Steps:
+1. Build a release APK:
+   ```bash
+   flutter build apk --release
+   ```
+2. Create a GitHub Release with a version tag like `v1.0.2`
+3. Upload `app-release.apk` to the release assets
+
+The app compares its version with the release tag and prompts the user to update.
+
+## Configuration
+Update checker uses your public repo:
+```
+lib/core/update/app_update_service.dart
+```
+
+## Project Structure
+```
+lib/
+  core/
+    theme/
+    update/
+    utils/
+  data/
+  features/
+```
+
+## Notes
+- Android only for document scanning
+- Biometric support depends on device hardware and enrollment
+
+## License
+MIT

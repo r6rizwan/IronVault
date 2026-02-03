@@ -6,20 +6,138 @@ import 'package:ironvault/core/theme/theme_provider.dart';
 import 'package:ironvault/features/settings/about_screen.dart';
 import 'package:ironvault/features/settings/security_tips_screen.dart';
 import 'package:ironvault/core/providers.dart';
+import 'package:ironvault/features/vault/screens/password_health_screen.dart';
 import 'change_pin_screen.dart';
+import 'package:ironvault/features/auth/screens/login_screen.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:ironvault/core/theme/app_tokens.dart';
 
-class SettingsScreen extends ConsumerWidget {
-  const SettingsScreen({super.key});
+class SettingsScreen extends ConsumerStatefulWidget {
+  final bool showAppBar;
+
+  const SettingsScreen({super.key, this.showAppBar = true});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _biometricEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final storage = ref.read(secureStorageProvider);
+
+    _biometricEnabled =
+        (await storage.readValue("biometrics_enabled") ?? "false") == "true";
+
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleBiometrics(bool value) async {
+    final storage = ref.read(secureStorageProvider);
+    final auth = LocalAuthentication();
+
+    if (value) {
+      final ok = await auth.authenticate(
+        localizedReason: "Enable biometrics for IronVault",
+        biometricOnly: true,
+      );
+      if (!ok) return;
+      await storage.writeValue("biometrics_enabled", "true");
+    } else {
+      await storage.writeValue("biometrics_enabled", "false");
+    }
+
+    if (mounted) setState(() => _biometricEnabled = value);
+  }
+
+  Future<void> _toggleTheme(bool value) async {
+    await ref
+        .read(themeModeProvider.notifier)
+        .setTheme(value ? ThemeMode.dark : ThemeMode.light);
+  }
+
+  Future<void> _logout() async {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    // final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDarkTheme = themeMode == ThemeMode.dark;
+    final textColor = AppThemeColors.text(context);
+    final textMuted = AppThemeColors.textMuted(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: widget.showAppBar ? AppBar(title: const Text("Settings")) : null,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Profile header
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.12),
+                  child: Icon(
+                    Icons.person,
+                    size: 28,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "IronVault User",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Your secure vault profile",
+                        style: TextStyle(fontSize: 12, color: textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           _sectionTitle("Security"),
 
           _settingsTile(
@@ -34,14 +152,40 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
 
-          _biometricToggle(context, ref),
+          _switchTile(
+            context,
+            icon: Icons.fingerprint,
+            title: "Enable Biometrics",
+            subtitle: "Use fingerprint/face unlock",
+            value: _biometricEnabled,
+            onChanged: _toggleBiometrics,
+          ),
 
           _autoLockTile(context, ref),
 
-          const SizedBox(height: 20),
-          _sectionTitle("Appearance"),
+          _settingsTile(
+            context,
+            icon: Icons.health_and_safety,
+            title: "Password Health",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PasswordHealthScreen()),
+              );
+            },
+          ),
 
-          _themeSelector(context, ref, themeMode),
+          const SizedBox(height: 20),
+          _sectionTitle("Preferences"),
+
+          _switchTile(
+            context,
+            icon: Icons.dark_mode,
+            title: "Dark Mode",
+            subtitle: "Use dark theme",
+            value: isDarkTheme,
+            onChanged: _toggleTheme,
+          ),
 
           const SizedBox(height: 20),
           _sectionTitle("Help & Info"),
@@ -69,6 +213,22 @@ class SettingsScreen extends ConsumerWidget {
               );
             },
           ),
+
+          const SizedBox(height: 24),
+
+          ElevatedButton(
+            onPressed: _logout,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text("Logout", style: TextStyle(fontSize: 16)),
+          ),
+
+          const SizedBox(height: 30),
         ],
       ),
     );
@@ -81,7 +241,7 @@ class SettingsScreen extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -97,11 +257,27 @@ class SettingsScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade800),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: ListTile(
-        leading: Icon(icon, size: 24),
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.primary.withValues(alpha: 0.12),
+          child: Icon(
+            icon,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
         title: Text(title),
         trailing: trailing ?? const Icon(Icons.chevron_right),
         onTap: onTap,
@@ -109,28 +285,43 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  // BIOMETRIC TOGGLE
-  Widget _biometricToggle(BuildContext context, WidgetRef ref) {
-    return FutureBuilder(
-      future: ref.read(secureStorageProvider).readValue("biometrics_enabled"),
-      builder: (context, snapshot) {
-        final enabled = snapshot.data == "true";
-
-        return _settingsTile(
-          context,
-          icon: Icons.fingerprint,
-          title: "Enable Biometrics",
-          trailing: Switch(
-            value: enabled,
-            onChanged: (value) async {
-              await ref
-                  .read(secureStorageProvider)
-                  .writeValue("biometrics_enabled", value ? "true" : "false");
-              (context as Element).markNeedsBuild();
-            },
+  Widget _switchTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
-        );
-      },
+        ],
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.primary.withValues(alpha: 0.12),
+          child: Icon(
+            icon,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: Switch(value: value, onChanged: onChanged),
+      ),
     );
   }
 
@@ -145,22 +336,6 @@ class SettingsScreen extends ConsumerWidget {
         showModalBottomSheet(
           context: context,
           builder: (_) => const _AutoLockSheet(),
-        );
-      },
-    );
-  }
-
-  // THEME SELECTOR TILE
-  Widget _themeSelector(BuildContext context, WidgetRef ref, ThemeMode mode) {
-    return _settingsTile(
-      context,
-      icon: Icons.color_lens,
-      title: "Theme",
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () {
-        showModalBottomSheet(
-          context: context,
-          builder: (_) => const _ThemeSelectorSheet(),
         );
       },
     );
@@ -192,9 +367,18 @@ class _AutoLockSheet extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
               const Text(
                 "Auto-lock Timer",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 16),
 
@@ -228,66 +412,3 @@ class _AutoLockSheet extends ConsumerWidget {
 }
 
 // ---------------- THEME SELECTOR SHEET ----------------
-
-class _ThemeSelectorSheet extends ConsumerWidget {
-  const _ThemeSelectorSheet();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
-
-    Widget option({
-      required ThemeMode mode,
-      required String label,
-      required IconData icon,
-    }) {
-      final bool selected = themeMode == mode;
-
-      return ListTile(
-        leading: Icon(icon, color: selected ? Colors.blueAccent : null),
-        title: Text(label),
-        trailing: Icon(
-          selected ? Icons.check_circle : Icons.circle_outlined,
-          color: selected ? Colors.blueAccent : null,
-        ),
-        onTap: () {
-          ref.read(themeModeProvider.notifier).setTheme(mode);
-          Navigator.pop(context);
-        },
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            "Choose Theme",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 12),
-
-          option(
-            mode: ThemeMode.system,
-            label: "System Default",
-            icon: Icons.phone_android,
-          ),
-
-          option(
-            mode: ThemeMode.light,
-            label: "Light Mode",
-            icon: Icons.light_mode,
-          ),
-
-          option(
-            mode: ThemeMode.dark,
-            label: "Dark Mode",
-            icon: Icons.dark_mode,
-          ),
-        ],
-      ),
-    );
-  }
-}

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:ironvault/core/theme/app_tokens.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -28,19 +29,30 @@ class _AboutScreenState extends State<AboutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // final textMuted = AppThemeColors.textMuted(context);
     return Scaffold(
       appBar: AppBar(title: const Text("About")),
       body: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
               child: Column(
-                children: const [
-                  Icon(Icons.lock, size: 70, color: Colors.blueAccent),
-                  SizedBox(height: 10),
-                  Text(
+                children: [
+                  CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.12),
+                    child: Icon(
+                      Icons.lock,
+                      size: 36,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
                     "IronVault",
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
@@ -88,22 +100,26 @@ class _AboutScreenState extends State<AboutScreen> {
     required String value,
     bool multiline = false,
   }) {
+    final textMuted = AppThemeColors.textMuted(context);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade800),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-          ),
+          Text(label, style: TextStyle(fontSize: 14, color: textMuted)),
           const SizedBox(height: 6),
           Text(
             value,

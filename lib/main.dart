@@ -1,21 +1,18 @@
-// lib/main.dart
-// Main entry + app widget for IronVault
-// Replaces previous main.dart with correct lifecycle + Riverpod 3.x usage.
-
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:ironvault/core/navigation/global_nav.dart';
 import 'core/autolock/auto_lock_provider.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/theme/app_theme.dart';
 import 'core/utils/encryption_util.dart';
 import 'core/providers.dart';
-
-import 'features/auth/screens/login_screen.dart';
+import 'core/theme/app_tokens.dart';
+import 'features/auth/screens/auth_choice_screen.dart';
 import 'features/auth/screens/setup_pin_screen.dart';
-
-// Providers moved to `lib/core/providers.dart` to avoid circular imports.
+import 'features/onboarding/screens/intro_carousel_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,139 +39,65 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  /// Lifecycle handler: start auto-lock on background, check and lock on resume
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final autoLock = ref.read(autoLockProvider.notifier);
 
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      // App going to background → record timestamp & start timer
+    if (state == AppLifecycleState.paused) {
+      // App moved to background → start timer
       autoLock.markPaused();
     }
 
     if (state == AppLifecycleState.resumed) {
-      // Evaluate if lock needed
-      autoLock.evaluateLockOnResume();
+      Future.microtask(() async {
+        await autoLock.evaluateLockOnResume();
+        final locked = ref.read(autoLockProvider);
 
-      final locked = ref.read(autoLockProvider);
-      if (locked) {
-        Future.microtask(() {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
+        if (locked) {
+          navKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
             (route) => false,
           );
-        });
-      }
+        }
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Watch themeModeProvider so theme updates live
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
+      navigatorKey: navKey,
+
       title: 'IronVault',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
 
       // ---------- Light theme ----------
-      theme: ThemeData(
-        brightness: Brightness.light,
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.grey.shade100,
-        cardColor: Colors.white,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
 
-        // AppBar styling
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          foregroundColor: Colors.black87,
-          titleTextStyle: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
-        ),
-
-        // Text theme appropriate for light mode
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Colors.black87),
-          bodyMedium: TextStyle(color: Colors.black87),
-        ),
-
-        // Input decoration styling for light mode
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.grey.shade200,
-          hintStyle: TextStyle(color: Colors.grey.shade600),
-          labelStyle: TextStyle(color: Colors.grey.shade800),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Colors.blueAccent, width: 1.5),
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
-
-      // ---------- Dark theme ----------
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        cardColor: const Color(0xFF1E1E1E),
-
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1A1A1A),
-          elevation: 0,
-          foregroundColor: Colors.white,
-          titleTextStyle: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-
-        // Text theme for dark mode
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Colors.white),
-        ),
-
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFF2A2A2A),
-          hintStyle: TextStyle(color: Colors.grey.shade500),
-          labelStyle: const TextStyle(color: Colors.white70),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade700),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Colors.blueAccent, width: 1.5),
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
-
+      builder: (context, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final style = SystemUiOverlayStyle(
+          statusBarColor: isDark ? AppColorsDark.bg : AppColorsLight.bg,
+          statusBarIconBrightness:
+              isDark ? Brightness.light : Brightness.dark,
+          statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        );
+        SystemChrome.setSystemUIOverlayStyle(style);
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: style,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const SplashScreen(),
     );
   }
 }
 
-/// Small splash flow that creates a master key on first run and routes to setup/login.
+/// Small splash flow that decides: Onboarding → Setup PIN → Login.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -191,31 +114,92 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   Future<void> _bootstrap() async {
     final storage = ref.read(secureStorageProvider);
-    final key = await storage.readMasterKey();
 
-    // slight delay to show spinner
     await Future.delayed(const Duration(milliseconds: 500));
 
-    if (!mounted) return;
+    // 1️⃣ Onboarding
+    final onboardingDone =
+        (await storage.readValue("onboarding_complete") ?? "false") == "true";
 
-    if (key == null) {
+    if (!onboardingDone) {
+      navKey.currentState?.pushReplacement(
+        MaterialPageRoute(builder: (_) => const IntroCarouselScreen()),
+      );
+      return;
+    }
+
+    // 2️⃣ Check master key + PIN
+    final masterKey = await storage.readMasterKey();
+    final pinHash = await storage.readPinHash();
+
+    if (masterKey == null || pinHash == null) {
       final newKey = EncryptionUtil.generateKeyBase64();
-      await storage.writeMasterKey(newKey);
+      if (masterKey == null) {
+        await storage.writeMasterKey(newKey);
+      }
 
-      Navigator.pushReplacement(
-        context,
+      navKey.currentState?.pushReplacement(
         MaterialPageRoute(builder: (_) => const SetupMasterPinScreen()),
       );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      return;
     }
+
+    // 3️⃣ User already set everything → go to auth choice
+    navKey.currentState?.pushReplacement(
+      MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0B132B), Color(0xFF1C2541)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                scale: 1.0,
+                duration: const Duration(milliseconds: 600),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Image.asset(
+                    "assets/icon/app_icon.png",
+                    width: 96,
+                    height: 96,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                "IronVault",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "Secure vault",
+                style: TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
