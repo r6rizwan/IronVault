@@ -27,6 +27,10 @@ A modern, offline-first password manager built with Flutter. IronVault stores al
 - local_auth
 - encrypt (AES-GCM)
 
+## Supported Platforms
+- Android (primary)
+- iOS (not yet tested)
+
 ## Setup
 ```bash
 flutter pub get
@@ -38,10 +42,22 @@ flutter run
 flutter build apk --release
 ```
 
+Build App Bundle (Play Store format):
+```bash
+flutter build appbundle --release
+```
+
 APK output:
 ```
 build/app/outputs/flutter-apk/app-release.apk
 ```
+
+## Releases
+If you upload demo builds, place them in:
+```
+/releases
+```
+Label builds clearly as **Demo build / Not Play Store uploaded**.
 
 ## GitHub Releases Update Flow
 IronVault checks your GitHub Releases and shows a soft update prompt if a newer version is available.
@@ -76,6 +92,9 @@ lib/
 ## Notes
 - Android only for document scanning
 - Biometric support depends on device hardware and enrollment
+
+## Repository Disclaimer
+This repository is **not** a Google Play submission. No Play Store compliance guarantees are implied.
 
 ## License
 MIT

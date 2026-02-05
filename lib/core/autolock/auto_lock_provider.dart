@@ -7,6 +7,7 @@ final autoLockProvider = NotifierProvider<AutoLockController, bool>(
 
 class AutoLockController extends Notifier<bool> {
   DateTime? _pausedAt;
+  bool _suspended = false;
   static const int _minBackgroundSeconds = 2;
 
   @override
@@ -16,11 +17,16 @@ class AutoLockController extends Notifier<bool> {
 
   /// Called when app goes inactive OR paused
   void markPaused() {
+    if (_suspended) return;
     _pausedAt = DateTime.now();
   }
 
   /// Decide if app should lock when resumed
   Future<void> evaluateLockOnResume() async {
+    if (_suspended) {
+      _resetPauseState();
+      return;
+    }
     final storage = ref.read(secureStorageProvider);
     final timer = await storage.readValue("auto_lock_timer") ?? "immediately";
 
@@ -53,6 +59,17 @@ class AutoLockController extends Notifier<bool> {
   /// Manual unlock
   void unlock() {
     state = false;
+  }
+
+  /// Temporarily suspend auto-lock (e.g., while launching external scanner)
+  void suspendAutoLock() {
+    _suspended = true;
+  }
+
+  /// Resume auto-lock and clear any pause state
+  void resumeAutoLock() {
+    _suspended = false;
+    _resetPauseState();
   }
 
   void _resetPauseState() {

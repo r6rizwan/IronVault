@@ -11,6 +11,7 @@ import 'package:ironvault/core/widgets/common_text_field.dart';
 import 'package:ironvault/features/categories/providers/category_provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 
 class AddItemScreen extends ConsumerStatefulWidget {
   final String? initialType;
@@ -119,12 +120,14 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   }
 
   Future<void> _scanDocuments() async {
+    ref.read(autoLockProvider.notifier).suspendAutoLock();
     List<String>? pages;
     try {
       pages = await CunningDocumentScanner.getPictures();
     } catch (_) {
       pages = null;
     }
+    ref.read(autoLockProvider.notifier).resumeAutoLock();
     if (pages == null || pages.isEmpty) return;
 
     final dir = await getApplicationDocumentsDirectory();
