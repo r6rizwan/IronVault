@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
 import 'package:local_auth/local_auth.dart';
@@ -45,7 +46,11 @@ class _EnableBiometricsScreenState
       final bool canCheck = await auth.canCheckBiometrics;
       final bool isSupported = await auth.isDeviceSupported();
 
-      debugPrint('[BIOMETRIC] canCheck: $canCheck, isSupported: $isSupported');
+      if (kDebugMode) {
+        debugPrint(
+          '[BIOMETRIC] canCheck: $canCheck, isSupported: $isSupported',
+        );
+      }
 
       if (!canCheck || !isSupported) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -58,7 +63,9 @@ class _EnableBiometricsScreenState
 
       // 2) Are there enrolled biometrics (fingerprints / face) ?
       final List<BiometricType> enrolled = await auth.getAvailableBiometrics();
-      debugPrint('[BIOMETRIC] enrolled types: $enrolled');
+      if (kDebugMode) {
+        debugPrint('[BIOMETRIC] enrolled types: $enrolled');
+      }
 
       if (enrolled.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -77,7 +84,9 @@ class _EnableBiometricsScreenState
         biometricOnly: true,
       );
 
-      debugPrint('[BIOMETRIC] authenticate result: $didAuthenticate');
+      if (kDebugMode) {
+        debugPrint('[BIOMETRIC] authenticate result: $didAuthenticate');
+      }
 
       if (!mounted) return;
 
@@ -105,7 +114,9 @@ class _EnableBiometricsScreenState
         );
       }
     } catch (e, st) {
-      debugPrint('[BIOMETRIC] error: $e\n$st');
+      if (kDebugMode) {
+        debugPrint('[BIOMETRIC] error: $e\n$st');
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Biometric error: $e')));

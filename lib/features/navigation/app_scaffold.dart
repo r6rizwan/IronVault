@@ -7,6 +7,7 @@ import '../add/screens/add_item_screen.dart';
 import '../categories/categories_screen.dart';
 import 'package:ironvault/core/update/app_update_service.dart';
 import 'package:ironvault/core/update/update_prompt.dart';
+import 'package:ironvault/core/secure_storage.dart';
 import 'package:flutter/services.dart';
 
 enum AppPage { home, vault, search, settings }
@@ -20,9 +21,58 @@ class AppScaffold extends StatefulWidget {
 
 class _AppScaffoldState extends State<AppScaffold> {
   AppPage _currentPage = AppPage.home;
-  bool _checkedUpdate = false;
   DateTime? _lastBackPress;
   OverlayEntry? _exitToast;
+  final GlobalKey<CredentialListScreenState> _vaultKey =
+      GlobalKey<CredentialListScreenState>();
+  final SecureStorage _storage = SecureStorage();
+  bool _updateAvailable = false;
+  String? _updateVersion;
+  bool _checkingUpdate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkForUpdatesIfNeeded();
+  }
+
+  Future<void> _checkForUpdatesIfNeeded() async {
+    if (_checkingUpdate) return;
+    _checkingUpdate = true;
+
+    final last = await _storage.readValue('last_update_check');
+    final cachedAvailable = await _storage.readValue('update_available');
+    final cachedVersion = await _storage.readValue('update_version');
+
+    if (last != null) {
+      final lastTime = DateTime.tryParse(last);
+      if (lastTime != null &&
+          DateTime.now().difference(lastTime).inHours < 24) {
+        _updateAvailable = cachedAvailable == 'true';
+        _updateVersion = cachedVersion;
+        if (mounted) setState(() {});
+        _checkingUpdate = false;
+        return;
+      }
+    }
+
+    final info = await AppUpdateService().checkForUpdate();
+    _updateAvailable = info != null;
+    _updateVersion = info?.latestVersion;
+
+    await _storage.writeValue(
+      'last_update_check',
+      DateTime.now().toIso8601String(),
+    );
+    await _storage.writeValue(
+      'update_available',
+      _updateAvailable ? 'true' : 'false',
+    );
+    await _storage.writeValue('update_version', _updateVersion ?? '');
+
+    if (mounted) setState(() {});
+    _checkingUpdate = false;
+  }
 
   int _indexForPage(AppPage page) {
     switch (page) {
@@ -69,6 +119,23 @@ class _AppScaffoldState extends State<AppScaffold> {
     if (page != AppPage.vault) return const [];
     return [
       IconButton(
+        icon: const Icon(Icons.search),
+        tooltip: "Search",
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SearchScreen(showAppBar: true),
+            ),
+          );
+        },
+      ),
+      IconButton(
+        icon: const Icon(Icons.swap_vert_rounded),
+        tooltip: "Sort",
+        onPressed: () => _vaultKey.currentState?.openSortSheetFromParent(),
+      ),
+      IconButton(
         icon: const Icon(Icons.folder),
         tooltip: "Categories",
         onPressed: () {
@@ -97,16 +164,6 @@ class _AppScaffoldState extends State<AppScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_checkedUpdate) {
-      _checkedUpdate = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final info = await AppUpdateService().checkForUpdate();
-        if (info != null && mounted) {
-          await UpdatePrompt.show(context, info);
-        }
-      });
-    }
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -123,15 +180,54 @@ class _AppScaffoldState extends State<AppScaffold> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(_titleForPage(_currentPage)),
-          actions: _actionsForPage(context, _currentPage),
+          actions: [
+            ..._actionsForPage(context, _currentPage),
+            if (_updateAvailable)
+              IconButton(
+                tooltip:
+                    'Update available${_updateVersion != null ? ' ($_updateVersion)' : ''}',
+                icon: const Icon(Icons.system_update_alt),
+                onPressed: () async {
+                  final ctx = context;
+                  final info = await AppUpdateService().checkForUpdate();
+                  if (!mounted || !ctx.mounted) return;
+                  if (info != null) {
+                    _updateAvailable = true;
+                    _updateVersion = info.latestVersion;
+                    await _storage.writeValue(
+                      'last_update_check',
+                      DateTime.now().toIso8601String(),
+                    );
+                    await _storage.writeValue('update_available', 'true');
+                    await _storage.writeValue(
+                      'update_version',
+                      info.latestVersion,
+                    );
+                    if (mounted) setState(() {});
+                    if (!ctx.mounted) return;
+                    await UpdatePrompt.show(ctx, info);
+                  } else {
+                    _updateAvailable = false;
+                    _updateVersion = null;
+                    await _storage.writeValue(
+                      'last_update_check',
+                      DateTime.now().toIso8601String(),
+                    );
+                    await _storage.writeValue('update_available', 'false');
+                    await _storage.writeValue('update_version', '');
+                    if (mounted) setState(() {});
+                  }
+                },
+              ),
+          ],
         ),
         body: IndexedStack(
           index: _indexForPage(_currentPage),
-          children: const [
-            DashboardScreen(showAppBar: false),
-            CredentialListScreen(showAppBar: false),
-            SearchScreen(showAppBar: false),
-            SettingsScreen(showAppBar: false),
+          children: [
+            const DashboardScreen(showAppBar: false),
+            CredentialListScreen(key: _vaultKey, showAppBar: false),
+            const SearchScreen(showAppBar: false),
+            const SettingsScreen(showAppBar: false),
           ],
         ),
         floatingActionButton: FloatingActionButton(

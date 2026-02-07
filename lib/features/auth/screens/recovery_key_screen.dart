@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
+import 'package:ironvault/core/constants.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/features/vault/screens/enable_biometrics_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 
-class RecoveryKeyScreen extends StatelessWidget {
+class RecoveryKeyScreen extends ConsumerStatefulWidget {
   final String recoveryKey;
   final VoidCallback? onDone;
   final String doneLabel;
@@ -14,6 +19,34 @@ class RecoveryKeyScreen extends StatelessWidget {
     this.onDone,
     this.doneLabel = 'I have saved it',
   });
+
+  @override
+  ConsumerState<RecoveryKeyScreen> createState() => _RecoveryKeyScreenState();
+}
+
+class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
+  Timer? _clipboardTimer;
+  bool _clipboardDisabled = false;
+  @override
+  void initState() {
+    super.initState();
+    ref.read(autoLockProvider.notifier).suspendAutoLock();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final storage = ref.read(secureStorageProvider);
+    _clipboardDisabled =
+        (await storage.readValue('disable_clipboard_copy') ?? 'false') == 'true';
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _clipboardTimer?.cancel();
+    ref.read(autoLockProvider.notifier).resumeAutoLock();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +78,7 @@ class RecoveryKeyScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      recoveryKey,
+                      widget.recoveryKey,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -53,19 +86,34 @@ class RecoveryKeyScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.copy),
-                    onPressed: () async {
-                      await Clipboard.setData(
-                        ClipboardData(text: recoveryKey),
-                      );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Copied to clipboard')),
+                  if (!_clipboardDisabled)
+                    IconButton(
+                      icon: const Icon(Icons.copy),
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: widget.recoveryKey),
                         );
-                      }
-                    },
-                  ),
+                        _clipboardTimer?.cancel();
+                        _clipboardTimer = Timer(
+                          Duration(seconds: AppConstants.clipboardClearSeconds),
+                          () async {
+                            final data = await Clipboard.getData('text/plain');
+                            if (data?.text == widget.recoveryKey) {
+                              await Clipboard.setData(
+                                const ClipboardData(text: ''),
+                              );
+                            }
+                          },
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Copied to clipboard'),
+                            ),
+                          );
+                        }
+                      },
+                    ),
                 ],
               ),
             ),
@@ -74,8 +122,8 @@ class RecoveryKeyScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  if (onDone != null) {
-                    onDone!();
+                  if (widget.onDone != null) {
+                    widget.onDone!();
                     return;
                   }
                   Navigator.pushReplacement(
@@ -85,7 +133,7 @@ class RecoveryKeyScreen extends StatelessWidget {
                     ),
                   );
                 },
-                child: Text(doneLabel),
+                child: Text(widget.doneLabel),
               ),
             ),
           ],

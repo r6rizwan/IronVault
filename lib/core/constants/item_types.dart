@@ -75,6 +75,10 @@ const List<ItemTypeDefinition> itemTypes = [
         required: true,
       ),
       FieldDefinition(
+        key: 'branch_name',
+        label: 'Branch Name',
+      ),
+      FieldDefinition(
         key: 'notes',
         label: 'Notes',
         maxLines: 3,
@@ -90,11 +94,13 @@ const List<ItemTypeDefinition> itemTypes = [
         key: 'number',
         label: 'Card Number',
         keyboardType: TextInputType.number,
+        obscure: true,
         required: true,
       ),
       FieldDefinition(
         key: 'expiry',
         label: 'Expiry (MM/YY)',
+        obscure: true,
         required: true,
       ),
       FieldDefinition(

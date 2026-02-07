@@ -97,7 +97,7 @@ class _AboutScreenState extends State<AboutScreen> {
             context,
             title: 'Features',
             body:
-                'Passwords, bank accounts, cards, secure notes, document scanning, categories, favorites, password health, and autofill.',
+                'Passwords, bank accounts, cards, secure notes, document scanning, categories, favorites, and password health.',
           ),
           _section(
             context,

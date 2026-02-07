@@ -7,6 +7,7 @@ import 'package:ironvault/core/constants/category_presets.dart';
 import 'package:ironvault/features/categories/add_category_screen.dart';
 import 'package:ironvault/features/vault/screens/credential_list_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/providers.dart';
 
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
@@ -17,6 +18,24 @@ class CategoriesScreen extends ConsumerWidget {
     // final textColor = AppThemeColors.text(context);
     final textMuted = AppThemeColors.textMuted(context);
     final categories = ref.watch(categoryListProvider);
+    final filteredCategories = categories.where((c) {
+      final name = c.name.toLowerCase();
+      const blocked = [
+        'bank accounts',
+        'bank account',
+        'bank cards',
+        'bank card',
+        'secure notes',
+        'secure note',
+        'id documents',
+        'id document',
+        'documents',
+        'document',
+        'cards',
+        'card',
+      ];
+      return !blocked.contains(name);
+    }).toList();
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -34,7 +53,7 @@ class CategoriesScreen extends ConsumerWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18),
-        child: categories.isEmpty
+        child: filteredCategories.isEmpty
             ? Center(
                 child: Text(
                   "No categories yet",
@@ -42,10 +61,10 @@ class CategoriesScreen extends ConsumerWidget {
                 ),
               )
             : ListView.separated(
-                itemCount: categories.length,
+                itemCount: filteredCategories.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                 itemBuilder: (context, i) {
-                  final c = categories[i];
+                  final c = filteredCategories[i];
                   return _CategoryTile(
                     name: c.name,
                     icon: iconForKey(c.iconKey),
@@ -59,6 +78,53 @@ class CategoriesScreen extends ConsumerWidget {
                               CredentialListScreen(categoryFilter: c.name),
                         ),
                       );
+                    },
+                    onDelete: () async {
+                      final ctx = context;
+                      final repo = ref.read(credentialRepoProvider);
+                      final items = await repo.getAllDecrypted();
+                      final usedCount = items
+                          .where(
+                            (e) =>
+                                (e['category'] ?? '')
+                                    .toString()
+                                    .toLowerCase() ==
+                                c.name.toLowerCase(),
+                          )
+                          .length;
+
+                      if (!ctx.mounted) return;
+                      final confirm = await showDialog<bool>(
+                        context: ctx,
+                        builder: (_) => AlertDialog(
+                          title: const Text('Delete Category'),
+                          content: Text(
+                            usedCount == 0
+                                ? 'Delete this category?'
+                                : 'This category is used by $usedCount item(s). '
+                                      'Deleting it will remove the category from those items.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirm != true) return;
+
+                      if (usedCount > 0) {
+                        await repo.clearCategoryReferences(c.name);
+                      }
+                      await ref
+                          .read(categoryListProvider.notifier)
+                          .deleteCategory(c.id!);
                     },
                   );
                 },
@@ -74,6 +140,7 @@ class _CategoryTile extends StatelessWidget {
   final Color color;
   final bool isDark;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   const _CategoryTile({
     required this.name,
@@ -81,6 +148,7 @@ class _CategoryTile extends StatelessWidget {
     required this.color,
     required this.isDark,
     required this.onTap,
+    required this.onDelete,
   });
 
   @override
@@ -120,6 +188,11 @@ class _CategoryTile extends StatelessWidget {
                   color: textColor,
                 ),
               ),
+            ),
+            IconButton(
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline),
+              color: textMuted,
             ),
             Icon(Icons.arrow_forward_ios, size: 18, color: textMuted),
           ],

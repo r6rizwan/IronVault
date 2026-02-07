@@ -43,8 +43,9 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final autoLock = ref.read(autoLockProvider.notifier);
 
-    if (state == AppLifecycleState.paused) {
-      // App moved to background --> start timer
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      // App moved to background or inactive --> start timer
       autoLock.markPaused();
     }
 

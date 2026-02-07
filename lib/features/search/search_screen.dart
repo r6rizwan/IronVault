@@ -8,8 +8,9 @@ import 'package:ironvault/core/theme/app_tokens.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
+  final String? categoryFilter;
 
-  const SearchScreen({super.key, this.showAppBar = true});
+  const SearchScreen({super.key, this.showAppBar = true, this.categoryFilter});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -50,6 +51,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // final textMuted = AppThemeColors.textMuted(context);
     final q = _query.toLowerCase();
     final results = _items.where((item) {
+      final category = widget.categoryFilter;
+      if (category != null && category.isNotEmpty) {
+        if ((item["category"] ?? "").toString().toLowerCase() !=
+            category.toLowerCase()) {
+          return false;
+        }
+      }
       if (item["title"]?.toLowerCase().contains(q) ?? false) return true;
       final fields = (item["fields"] as Map?)?.cast<String, dynamic>() ?? {};
       for (final v in fields.values) {

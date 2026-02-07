@@ -4,11 +4,15 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 
     <application
         android:label="IronVault"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false">
 
         <activity
             android:name="com.ironvault.app.MainActivity"
@@ -29,23 +33,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".autofill.AutofillAuthActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar" />
-
-        <service
-            android:name=".autofill.IronVaultAutofillService"
-            android:permission="android.permission.BIND_AUTOFILL_SERVICE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.service.autofill.AutofillService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.autofill"
-                android:resource="@xml/autofill_service" />
-        </service>
 
         <meta-data
             android:name="flutterEmbedding"

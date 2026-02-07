@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class CommonTextField extends StatelessWidget {
   final String label;
@@ -6,6 +7,7 @@ class CommonTextField extends StatelessWidget {
   final bool obscure;
   final Widget? suffix;
   final TextInputType keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
   final VoidCallback? onToggle;
   final Iterable<String>? autofillHints;
   final int maxLines;
@@ -19,6 +21,7 @@ class CommonTextField extends StatelessWidget {
     this.obscure = false,
     this.suffix,
     this.keyboardType = TextInputType.text,
+    this.inputFormatters,
     this.onToggle,
     this.autofillHints,
     this.maxLines = 1,
@@ -57,6 +60,7 @@ class CommonTextField extends StatelessWidget {
           controller: controller,
           obscureText: obscure,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           autofillHints: autofillHints,
           maxLines: maxLines,
           style: TextStyle(

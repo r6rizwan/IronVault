@@ -38,38 +38,124 @@ class CategoryRepository {
         ''');
 
         await db.insert(_table, {
-          'name': 'Passwords',
-          'iconKey': 'lock',
+          'name': 'Banking',
+          'iconKey': 'bank',
           'colorValue': 0xFF3B82F6,
         });
         await db.insert(_table, {
-          'name': 'Bank Cards',
-          'iconKey': 'credit_card',
+          'name': 'Social',
+          'iconKey': 'web',
           'colorValue': 0xFF8B5CF6,
         });
         await db.insert(_table, {
-          'name': 'Secure Notes',
-          'iconKey': 'note',
+          'name': 'Email',
+          'iconKey': 'email',
           'colorValue': 0xFFF97316,
         });
         await db.insert(_table, {
-          'name': 'ID Documents',
-          'iconKey': 'id',
+          'name': 'Work',
+          'iconKey': 'other',
           'colorValue': 0xFF10B981,
         });
         await db.insert(_table, {
-          'name': 'Bank Accounts',
-          'iconKey': 'bank',
+          'name': 'Personal',
+          'iconKey': 'note',
           'colorValue': 0xFF06B6D4,
+        });
+        await db.insert(_table, {
+          'name': 'Shopping',
+          'iconKey': 'credit_card',
+          'colorValue': 0xFFEF4444,
         });
       },
     );
   }
 
   Future<List<VaultCategory>> getAll() async {
+    await ensureDefaults();
     final database = await db;
     final rows = await database.query(_table, orderBy: 'name COLLATE NOCASE');
     return rows.map((r) => VaultCategory.fromMap(r)).toList();
+  }
+
+  Future<void> ensureDefaults() async {
+    final database = await db;
+    final existing = await database.query(_table, columns: ['name']);
+    final names = existing
+        .map((r) => (r['name'] as String).toLowerCase())
+        .toSet();
+
+    // Remove legacy categories that overlap with item types.
+    const blocked = [
+      'passwords',
+      'bank accounts',
+      'bank account',
+      'bank cards',
+      'bank card',
+      'secure notes',
+      'secure note',
+      'id documents',
+      'id document',
+      'documents',
+      'document',
+      'cards',
+      'card',
+    ];
+    for (final name in blocked) {
+      if (names.contains(name)) {
+        await database.delete(
+          _table,
+          where: 'LOWER(name) = ?',
+          whereArgs: [name],
+        );
+        names.remove(name);
+      }
+    }
+
+    Future<void> insertIfMissing({
+      required String name,
+      required String iconKey,
+      required int colorValue,
+    }) async {
+      if (names.contains(name.toLowerCase())) return;
+      await database.insert(_table, {
+        'name': name,
+        'iconKey': iconKey,
+        'colorValue': colorValue,
+      });
+      names.add(name.toLowerCase());
+    }
+
+    await insertIfMissing(
+      name: 'Banking',
+      iconKey: 'bank',
+      colorValue: 0xFF3B82F6,
+    );
+    await insertIfMissing(
+      name: 'Social',
+      iconKey: 'web',
+      colorValue: 0xFF8B5CF6,
+    );
+    await insertIfMissing(
+      name: 'Email',
+      iconKey: 'email',
+      colorValue: 0xFFF97316,
+    );
+    await insertIfMissing(
+      name: 'Work',
+      iconKey: 'other',
+      colorValue: 0xFF10B981,
+    );
+    await insertIfMissing(
+      name: 'Personal',
+      iconKey: 'note',
+      colorValue: 0xFF06B6D4,
+    );
+    await insertIfMissing(
+      name: 'Shopping',
+      iconKey: 'credit_card',
+      colorValue: 0xFFEF4444,
+    );
   }
 
   Future<VaultCategory> insert(VaultCategory c) async {

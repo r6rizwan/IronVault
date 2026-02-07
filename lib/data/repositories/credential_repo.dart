@@ -230,6 +230,26 @@ class CredentialRepository {
     await (db.delete(db.credentials)..where((tbl) => tbl.id.equals(id))).go();
   }
 
+  /// Clear category references for items that match a category name.
+  /// Returns number of updated items.
+  Future<int> clearCategoryReferences(String categoryName) async {
+    final items = await getAllDecrypted();
+    var updated = 0;
+    for (final item in items) {
+      final category = (item['category'] ?? '').toString();
+      if (category.toLowerCase() != categoryName.toLowerCase()) continue;
+      await updateItem(
+        id: item['id'] as String,
+        type: item['type'] as String,
+        title: item['title'] as String,
+        fields: (item['fields'] as Map).cast<String, String>(),
+        category: null,
+      );
+      updated++;
+    }
+    return updated;
+  }
+
   Map<String, String> _decodeFields(Credential row, String key) {
     if (row.data != null) {
       try {

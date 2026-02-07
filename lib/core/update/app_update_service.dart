@@ -15,7 +15,7 @@ class AppUpdateInfo {
 }
 
 class AppUpdateService {
-  // TODO: Replace with your GitHub owner/repo
+  // Replace with your GitHub owner/repo
   static const String owner = 'r6rizwan';
   static const String repo = 'Password-Manager';
   static const String apiBase = 'https://api.github.com/repos/$owner/$repo';

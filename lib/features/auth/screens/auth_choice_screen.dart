@@ -86,7 +86,7 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
   }
 
   void _usePin() {
-    navKey.currentState?.pushReplacement(
+    navKey.currentState?.push(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
   }

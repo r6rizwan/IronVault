@@ -29,12 +29,21 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
   Timer? _clipboardClearTimer;
   String? _lastCopiedValue;
   final Map<String, bool> _obscureFields = {};
+  bool _clipboardDisabled = false;
 
   @override
   void initState() {
     super.initState();
     item = Map<String, dynamic>.from(widget.item); // local copy so UI updates
     _initObscureStates();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final storage = ref.read(secureStorageProvider);
+    _clipboardDisabled =
+        (await storage.readValue('disable_clipboard_copy') ?? 'false') == 'true';
+    if (mounted) setState(() {});
   }
 
   @override
@@ -75,6 +84,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
   }
 
   Future<void> _copyValue(String key, String value) async {
+    if (_clipboardDisabled) return;
     await Clipboard.setData(ClipboardData(text: value));
     setState(() => _copiedKey = key);
     await _scheduleClipboardClear(value);
@@ -486,12 +496,21 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                           ),
                         IconButton(
                           icon: Icon(
-                            _copiedKey == field.key ? Icons.check : Icons.copy,
+                            _copiedKey == field.key
+                                ? Icons.check
+                                : _clipboardDisabled
+                                    ? Icons.lock_outline
+                                    : Icons.copy,
                             color:
-                                _copiedKey == field.key ? Colors.green : null,
+                                _copiedKey == field.key
+                                    ? Colors.green
+                                    : (_clipboardDisabled
+                                        ? Colors.grey
+                                        : null),
                             size: 22,
                           ),
-                          onPressed: _copiedKey == field.key
+                          onPressed: _copiedKey == field.key ||
+                                  _clipboardDisabled
                               ? null
                               : () => _copyValue(field.key, value),
                         ),

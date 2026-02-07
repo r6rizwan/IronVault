@@ -6,8 +6,6 @@ import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/features/categories/categories_screen.dart';
 import 'package:ironvault/core/constants/item_types.dart';
 import 'view_credential_screen.dart';
-import 'package:ironvault/features/vault/providers/search_provider.dart';
-import 'package:ironvault/core/widgets/search_bar.dart';
 
 enum SortOption { favoritesFirst, aToZ, zToA, recentAdded, recentUpdated }
 
@@ -23,33 +21,23 @@ class CredentialListScreen extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<CredentialListScreen> createState() =>
-      _CredentialListScreenState();
+      CredentialListScreenState();
 }
 
-class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
+class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
   bool _loading = false;
   List<Map<String, dynamic>> _items = [];
 
   SortOption _sortBy = SortOption.favoritesFirst;
 
-  final searchController = TextEditingController();
-
-  /// ⭐ GLOBAL KEY to control the search bar (expand/collapse)
-  final GlobalKey<IronSearchBarState> _searchBarKey =
-      GlobalKey<IronSearchBarState>();
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(searchQueryProvider.notifier).state = "";
-    });
     _loadCredentials();
   }
 
   @override
   void dispose() {
-    searchController.dispose();
     super.dispose();
   }
 
@@ -122,9 +110,6 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
   }
 
   void _openSortSheet() {
-    _searchBarKey.currentState
-        ?.collapse(); // also collapse search when opening sheet
-
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -188,6 +173,8 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
     );
   }
 
+  void openSortSheetFromParent() => _openSortSheet();
+
   ListTile _buildSortTile(
     BuildContext ctx,
     String text,
@@ -210,10 +197,7 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final query = ref.watch(searchQueryProvider);
-
     final filteredItems = _items.where((item) {
-      final q = query.toLowerCase();
       final category = widget.categoryFilter;
       if (category != null && category.isNotEmpty) {
         if ((item["category"] ?? "").toString().toLowerCase() !=
@@ -221,10 +205,7 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
           return false;
         }
       }
-
-      return (item["title"]?.toLowerCase().contains(q) ?? false) ||
-          (item["username"]?.toLowerCase().contains(q) ?? false) ||
-          (item["email"]?.toLowerCase().contains(q) ?? false);
+      return true;
     }).toList();
 
     return Scaffold(
@@ -255,10 +236,8 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
           return _loading
               ? const Center(child: CircularProgressIndicator())
               : GestureDetector(
-                  /// collapse search when tapping outside
                   onTap: () {
                     FocusScope.of(context).unfocus();
-                    _searchBarKey.currentState?.collapse();
                   },
                   behavior: HitTestBehavior.translucent,
                   child: Padding(
@@ -266,30 +245,6 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                     child: Column(
                       children: [
                         const SizedBox(height: 4),
-
-                        /// SEARCH BAR + SORT CHIP
-                        Row(
-                          children: [
-                            Expanded(
-                              child: IronSearchBar(
-                                key: _searchBarKey,
-                                controller: searchController,
-                                onChanged: (value) {
-                                  ref.read(searchQueryProvider.notifier).state =
-                                      value.trim().toLowerCase();
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            IconButton(
-                              icon: const Icon(Icons.swap_vert_rounded),
-                              tooltip: "Sort",
-                              onPressed: _openSortSheet,
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 16),
 
                         /// empty state
                         if (filteredItems.isEmpty)
@@ -405,12 +360,6 @@ class _CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                                       ),
                                                     ),
                                                   ),
-                                                  if (isFav)
-                                                    const Icon(
-                                                      Icons.star,
-                                                      color: Colors.amber,
-                                                      size: 18,
-                                                    ),
                                                 ],
                                               ),
                                               const SizedBox(height: 4),

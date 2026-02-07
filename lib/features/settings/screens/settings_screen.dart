@@ -16,7 +16,6 @@ import 'package:ironvault/core/update/update_prompt.dart';
 import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/services.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
@@ -30,8 +29,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _biometricEnabled = false;
   bool _lockOnSwitch = true;
-  bool _autofillEnabled = true;
   bool _hasRecoveryKey = true;
+  bool _clipboardDisabled = false;
   late final String _securityTip;
 
   static const List<String> _securityTips = [
@@ -39,7 +38,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     'Save your recovery key somewhere secure and offline.',
     'Enable biometrics for faster and safer unlocks.',
     'Review Password Health regularly to spot weak entries.',
-    'Turn on autofill to avoid copying passwords manually.',
   ];
 
   @override
@@ -58,8 +56,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         (await storage.readValue("biometrics_enabled") ?? "false") == "true";
     _lockOnSwitch =
         (await storage.readValue("auto_lock_on_switch") ?? "true") == "true";
-    _autofillEnabled =
-        (await storage.readValue("autofill_enabled") ?? "true") == "true";
+    _clipboardDisabled =
+        (await storage.readValue("disable_clipboard_copy") ?? "false") ==
+            "true";
     _hasRecoveryKey = (await storage.readRecoveryKeyHash()) != null;
 
     if (mounted) setState(() {});
@@ -94,34 +93,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) setState(() => _lockOnSwitch = value);
   }
 
-  Future<void> _toggleAutofill(bool value) async {
+  Future<void> _toggleClipboardDisabled(bool value) async {
     final storage = ref.read(secureStorageProvider);
-    await storage.writeValue('autofill_enabled', value ? 'true' : 'false');
-    if (mounted) setState(() => _autofillEnabled = value);
-
-    try {
-      const intent = MethodChannel('ironvault/autofill');
-      await intent.invokeMethod('openAutofillSettings');
-    } catch (_) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Autofill settings'),
-            content: const Text(
-              'Please enable IronVault in Android Settings → Autofill.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-    }
+    await storage.writeValue('disable_clipboard_copy', value ? 'true' : 'false');
+    if (mounted) setState(() => _clipboardDisabled = value);
   }
+
 
   Future<void> _logout() async {
     Navigator.pushAndRemoveUntil(
@@ -234,11 +211,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           _switchTile(
             context,
-            icon: Icons.autofps_select,
-            title: "Autofill Service",
-            subtitle: "Enable Android Autofill (system setting required)",
-            value: _autofillEnabled,
-            onChanged: _toggleAutofill,
+            icon: Icons.copy_rounded,
+            title: "Disable Clipboard Copy",
+            subtitle: "Prevent copying sensitive data",
+            value: _clipboardDisabled,
+            onChanged: _toggleClipboardDisabled,
           ),
 
           _settingsTile(
