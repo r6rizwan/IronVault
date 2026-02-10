@@ -9,17 +9,21 @@ import 'package:ironvault/core/update/app_update_service.dart';
 import 'package:ironvault/core/update/update_prompt.dart';
 import 'package:ironvault/core/secure_storage.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/core/navigation/global_nav.dart';
+import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
 
 enum AppPage { home, vault, search, settings }
 
-class AppScaffold extends StatefulWidget {
+class AppScaffold extends ConsumerStatefulWidget {
   const AppScaffold({super.key});
 
   @override
-  State<AppScaffold> createState() => _AppScaffoldState();
+  ConsumerState<AppScaffold> createState() => _AppScaffoldState();
 }
 
-class _AppScaffoldState extends State<AppScaffold> {
+class _AppScaffoldState extends ConsumerState<AppScaffold> {
   AppPage _currentPage = AppPage.home;
   DateTime? _lastBackPress;
   OverlayEntry? _exitToast;
@@ -116,36 +120,53 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   List<Widget> _actionsForPage(BuildContext context, AppPage page) {
-    if (page != AppPage.vault) return const [];
-    return [
-      IconButton(
-        icon: const Icon(Icons.search),
-        tooltip: "Search",
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const SearchScreen(showAppBar: true),
-            ),
-          );
-        },
-      ),
-      IconButton(
-        icon: const Icon(Icons.swap_vert_rounded),
-        tooltip: "Sort",
-        onPressed: () => _vaultKey.currentState?.openSortSheetFromParent(),
-      ),
-      IconButton(
-        icon: const Icon(Icons.folder),
-        tooltip: "Categories",
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CategoriesScreen()),
-          );
-        },
-      ),
-    ];
+    if (page == AppPage.vault) {
+      return [
+        IconButton(
+          icon: const Icon(Icons.search),
+          tooltip: "Search",
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const SearchScreen(showAppBar: true),
+              ),
+            );
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.swap_vert_rounded),
+          tooltip: "Sort",
+          onPressed: () => _vaultKey.currentState?.openSortSheetFromParent(),
+        ),
+        IconButton(
+          icon: const Icon(Icons.folder),
+          tooltip: "Categories",
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+            );
+          },
+        ),
+      ];
+    }
+    if (page == AppPage.home) {
+      return [
+        IconButton(
+          icon: const Icon(Icons.lock_outline),
+          tooltip: "Lock now",
+          onPressed: () {
+            ref.read(autoLockProvider.notifier).lockNow();
+            navKey.currentState?.pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
+              (_) => false,
+            );
+          },
+        ),
+      ];
+    }
+    return const [];
   }
 
   Widget _navItem({

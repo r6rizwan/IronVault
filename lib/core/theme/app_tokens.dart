@@ -20,25 +20,25 @@ class AppTokens {
 }
 
 class AppColorsLight {
-  static const bg = Color(0xFFF6F8FC);
+  static const bg = Color(0xFFF4F7FC);
   static const surface = Color(0xFFFFFFFF);
-  static const surfaceMuted = Color(0xFFF2F5FB);
+  static const surfaceMuted = Color(0xFFEEF2F8);
   static const primary = Color(0xFF2563EB);
   static const secondary = Color(0xFF06B6D4);
   static const text = Color(0xFF0B1220);
   static const textMuted = Color(0xFF5B667A);
-  static const border = Color(0xFFE2E8F0);
+  static const border = Color(0xFFE1E7F0);
 }
 
 class AppColorsDark {
-  static const bg = Color(0xFF0B1220);
-  static const surface = Color(0xFF0F172A);
-  static const surfaceMuted = Color(0xFF0B1A33);
-  static const primary = Color(0xFF2563EB);
-  static const secondary = Color(0xFF06B6D4);
-  static const text = Color(0xFFFFFFFF);
-  static const textMuted = Color(0xFFB7C0D0);
-  static const border = Color(0xFF1F2937);
+  static const bg = Color(0xFF0E141B);
+  static const surface = Color(0xFF18212B);
+  static const surfaceMuted = Color(0xFF1C2733);
+  static const primary = Color(0xFF4F8BFF);
+  static const secondary = Color(0xFF4CC9F0);
+  static const text = Color(0xFFE6EDF6);
+  static const textMuted = Color(0xFFA6B2C3);
+  static const border = Color(0xFF263141);
 }
 
 class AppThemeColors {

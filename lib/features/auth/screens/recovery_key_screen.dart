@@ -7,6 +7,7 @@ import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/features/vault/screens/enable_biometrics_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 
 class RecoveryKeyScreen extends ConsumerStatefulWidget {
   final String recoveryKey;
@@ -27,10 +28,12 @@ class RecoveryKeyScreen extends ConsumerStatefulWidget {
 class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
   Timer? _clipboardTimer;
   bool _clipboardDisabled = false;
+  late final AutoLockController _autoLock;
   @override
   void initState() {
     super.initState();
-    ref.read(autoLockProvider.notifier).suspendAutoLock();
+    _autoLock = ref.read(autoLockProvider.notifier);
+    _autoLock.suspendAutoLock();
     _loadPrefs();
   }
 
@@ -44,7 +47,7 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
   @override
   void dispose() {
     _clipboardTimer?.cancel();
-    ref.read(autoLockProvider.notifier).resumeAutoLock();
+    _autoLock.resumeAutoLock();
     super.dispose();
   }
 
@@ -106,11 +109,7 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                           },
                         );
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Copied to clipboard'),
-                            ),
-                          );
+                          showAppToast(context, 'Recovery key copied');
                         }
                       },
                     ),

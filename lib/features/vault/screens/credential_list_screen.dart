@@ -6,6 +6,7 @@ import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/features/categories/categories_screen.dart';
 import 'package:ironvault/core/constants/item_types.dart';
 import 'view_credential_screen.dart';
+import 'package:ironvault/core/widgets/empty_state.dart';
 
 enum SortOption { favoritesFirst, aToZ, zToA, recentAdded, recentUpdated }
 
@@ -27,6 +28,7 @@ class CredentialListScreen extends ConsumerStatefulWidget {
 class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
   bool _loading = false;
   List<Map<String, dynamic>> _items = [];
+  late final ProviderSubscription<int> _refreshSub;
 
   SortOption _sortBy = SortOption.favoritesFirst;
 
@@ -34,10 +36,17 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
   void initState() {
     super.initState();
     _loadCredentials();
+    _refreshSub = ref.listenManual<int>(
+      vaultRefreshProvider,
+      (_, __) {
+        if (mounted) _loadCredentials();
+      },
+    );
   }
 
   @override
   void dispose() {
+    _refreshSub.close();
     super.dispose();
   }
 
@@ -101,6 +110,18 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
     final fields = (item['fields'] as Map?)?.cast<String, dynamic>() ?? {};
     if (item['type'] == 'password') {
       return (fields['username'] ?? item['username'] ?? '').toString();
+    }
+    if (item['type'] == 'card') {
+      final number = (fields['number'] ?? '').toString().replaceAll(' ', '');
+      if (number.isEmpty) return 'Card ••••';
+      final last4 = number.length >= 4 ? number.substring(number.length - 4) : number;
+      return 'Card •••• $last4';
+    }
+    if (item['type'] == 'bank') {
+      final acct = (fields['account_number'] ?? '').toString().replaceAll(' ', '');
+      if (acct.isEmpty) return 'Bank account';
+      final last4 = acct.length >= 4 ? acct.substring(acct.length - 4) : acct;
+      return 'A/C •••• $last4';
     }
     for (final v in fields.values) {
       final text = v?.toString() ?? '';
@@ -249,41 +270,11 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                         /// empty state
                         if (filteredItems.isEmpty)
                           Expanded(
-                            child: Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 28,
-                                    backgroundColor: Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withValues(alpha: 0.12),
-                                    child: Icon(
-                                      Icons.lock_open_rounded,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    "No items found",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "Try a different search or add a new item.",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            child: const EmptyState(
+                              icon: Icons.lock_open_rounded,
+                              title: "No items found",
+                              subtitle:
+                                  "Try a different search or add a new item.",
                             ),
                           )
                         else

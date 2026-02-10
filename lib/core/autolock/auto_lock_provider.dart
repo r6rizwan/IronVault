@@ -64,6 +64,11 @@ class AutoLockController extends Notifier<bool> {
     state = false;
   }
 
+  /// Force lock now
+  void lockNow() {
+    state = true;
+  }
+
   Future<void> setLockOnSwitch(bool enabled) async {
     _lockOnSwitch = enabled;
     final storage = ref.read(secureStorageProvider);

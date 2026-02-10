@@ -14,6 +14,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 
 class AddItemScreen extends ConsumerStatefulWidget {
   final String? initialType;
@@ -314,9 +315,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       if (mounted) setState(() {});
       await _scrollToFirstError();
       if (!mounted || !ctx.mounted) return;
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields')),
-      );
+      showAppToast(ctx, 'Please fill all required fields');
       return;
     }
 
@@ -346,11 +345,10 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       TextInput.finishAutofillContext(shouldSave: true);
       if (!mounted || !ctx.mounted) return;
       Navigator.pop(ctx, true);
+      ref.read(vaultRefreshProvider.notifier).state++;
     } catch (e) {
       if (!mounted || !ctx.mounted) return;
-      ScaffoldMessenger.of(
-        ctx,
-      ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
+      showAppToast(ctx, 'Failed to save: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -410,6 +408,8 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                         width: 70,
                         height: 88,
                         fit: BoxFit.cover,
+                        cacheWidth: 240,
+                        cacheHeight: 320,
                       ),
                     ),
                   );
@@ -739,7 +739,11 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
               itemCount: _scanPaths.length,
               itemBuilder: (_, i) {
                 return InteractiveViewer(
-                  child: Image.file(File(_scanPaths[i]), fit: BoxFit.contain),
+                  child: Image.file(
+                    File(_scanPaths[i]),
+                    fit: BoxFit.contain,
+                    cacheWidth: 1440,
+                  ),
                 );
               },
             ),
@@ -799,6 +803,8 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                             width: 48,
                             height: 64,
                             fit: BoxFit.cover,
+                            cacheWidth: 200,
+                            cacheHeight: 260,
                           ),
                         ),
                         title: Text('Page ${index + 1}'),

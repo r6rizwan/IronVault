@@ -111,6 +111,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                   child: Image.file(
                     File(pages[i]),
                     fit: BoxFit.contain,
+                    cacheWidth: 1440,
                   ),
                 );
               },
@@ -172,6 +173,8 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                             width: 48,
                             height: 64,
                             fit: BoxFit.cover,
+                            cacheWidth: 200,
+                            cacheHeight: 260,
                           ),
                         ),
                         title: Text('Page ${index + 1}'),
@@ -364,47 +367,6 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header card
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.12),
-                    radius: 26,
-                    child: Icon(
-                      typeDef.icon,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 18),
-                  Expanded(
-                    child: Text(
-                      item["title"],
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             _sectionTitle("Type"),
             _infoTile(value: typeDef.label),
 
@@ -445,6 +407,8 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                                 width: 70,
                                 height: 90,
                                 fit: BoxFit.cover,
+                                cacheWidth: 240,
+                                cacheHeight: 320,
                               ),
                             ),
                           );

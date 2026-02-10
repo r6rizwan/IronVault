@@ -8,6 +8,7 @@ import 'package:ironvault/features/categories/add_category_screen.dart';
 import 'package:ironvault/features/vault/screens/credential_list_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/providers.dart';
+import 'package:ironvault/core/widgets/empty_state.dart';
 
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
@@ -16,7 +17,7 @@ class CategoriesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // final textColor = AppThemeColors.text(context);
-    final textMuted = AppThemeColors.textMuted(context);
+    // final textMuted = AppThemeColors.textMuted(context);
     final categories = ref.watch(categoryListProvider);
     final filteredCategories = categories.where((c) {
       final name = c.name.toLowerCase();
@@ -54,10 +55,20 @@ class CategoriesScreen extends ConsumerWidget {
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18),
         child: filteredCategories.isEmpty
-            ? Center(
-                child: Text(
-                  "No categories yet",
-                  style: TextStyle(fontSize: 16, color: textMuted),
+            ? EmptyState(
+                icon: Icons.folder_outlined,
+                title: "No categories yet",
+                subtitle: "Create one to group your passwords.",
+                action: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddCategoryScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Add Category'),
                 ),
               )
             : ListView.separated(

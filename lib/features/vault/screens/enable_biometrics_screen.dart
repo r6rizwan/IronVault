@@ -8,6 +8,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 
 class EnableBiometricsScreen extends ConsumerStatefulWidget {
   const EnableBiometricsScreen({super.key});
@@ -53,9 +54,20 @@ class _EnableBiometricsScreenState
       }
 
       if (!canCheck || !isSupported) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Biometrics not supported on this device.'),
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Biometrics not supported'),
+            content: const Text(
+              'This device does not support biometric authentication.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
         return;
@@ -68,11 +80,20 @@ class _EnableBiometricsScreenState
       }
 
       if (enrolled.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'No biometrics enrolled. Please enroll fingerprint/Face ID in device settings.',
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Biometrics not set'),
+            content: const Text(
+              'Set up fingerprint or face unlock in your device settings.',
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
         return;
@@ -98,28 +119,23 @@ class _EnableBiometricsScreenState
         // 🔥 RESET AUTO-LOCK STATE
         ref.read(autoLockProvider.notifier).unlock();
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Biometrics enabled')));
+        if (!mounted) return;
+        showAppToast(context, 'Biometrics enabled');
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Biometric authentication cancelled or failed.'),
-          ),
-        );
+        if (!mounted) return;
+        showAppToast(context, 'Biometric cancelled. Use PIN instead.');
       }
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[BIOMETRIC] error: $e\n$st');
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Biometric error: $e')));
+      if (!mounted) return;
+      showAppToast(context, 'Biometric error: $e');
     }
   }
 

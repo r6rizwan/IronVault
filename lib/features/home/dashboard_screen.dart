@@ -54,6 +54,7 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(vaultRefreshProvider);
     final categories = ref.watch(categoryListProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

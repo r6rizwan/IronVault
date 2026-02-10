@@ -7,6 +7,7 @@ import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/utils/pin_kdf.dart';
 import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 
 class ResetPinScreen extends ConsumerStatefulWidget {
   const ResetPinScreen({super.key});
@@ -33,7 +34,7 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
   bool _loading = false;
 
   void _showMsg(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showAppToast(context, msg);
   }
 
   String _collect(List<TextEditingController> list) {

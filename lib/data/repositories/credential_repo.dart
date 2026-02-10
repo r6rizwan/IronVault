@@ -78,6 +78,53 @@ class CredentialRepository {
     );
   }
 
+  /// Add item with extra metadata (used for imports).
+  Future<void> addItemWithMeta({
+    required String type,
+    required String title,
+    required Map<String, String> fields,
+    String? category,
+    bool isFavorite = false,
+  }) async {
+    final key = await _requireMasterKey();
+
+    final encTitle = EncryptionUtil.encrypt(title, key);
+    final encCategory = category != null
+        ? EncryptionUtil.encrypt(category, key)
+        : null;
+
+    final jsonFields = jsonEncode(fields);
+    final encData = EncryptionUtil.encrypt(jsonFields, key);
+
+    final username = fields['username'] ?? '';
+    final password = fields['password'] ?? '';
+    final notes = fields['notes'];
+
+    final encUsername = EncryptionUtil.encrypt(username, key);
+    final encPassword = EncryptionUtil.encrypt(password, key);
+    final encNotes = notes != null && notes.trim().isNotEmpty
+        ? EncryptionUtil.encrypt(notes, key)
+        : null;
+
+    final now = DateTime.now();
+
+    await db.into(db.credentials).insert(
+      CredentialsCompanion.insert(
+        id: _uuid.v4(),
+        title: encTitle,
+        username: encUsername,
+        password: encPassword,
+        notes: Value(encNotes),
+        category: Value(encCategory),
+        itemType: Value(type),
+        data: Value(encData),
+        isFavorite: Value(isFavorite),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+  }
+
   /// Backward-compatible password credential add
   Future<void> addCredential({
     required String title,

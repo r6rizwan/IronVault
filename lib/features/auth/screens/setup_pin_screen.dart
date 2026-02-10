@@ -9,6 +9,7 @@ import 'package:ironvault/features/vault/screens/enable_biometrics_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 
 class SetupMasterPinScreen extends ConsumerStatefulWidget {
   const SetupMasterPinScreen({super.key});
@@ -36,7 +37,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
   bool _loading = false;
 
   void _showMsg(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showAppToast(context, msg);
   }
 
   String _collect(List<TextEditingController> list) {

@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/features/vault/screens/view_credential_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/widgets/empty_state.dart';
+import 'package:ironvault/core/constants/item_types.dart';
+import 'package:ironvault/features/categories/providers/category_provider.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
@@ -21,10 +24,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _query = "";
   bool _loading = false;
   List<Map<String, dynamic>> _items = [];
+  String? _typeFilter;
+  String? _categoryFilter;
+  bool _favoritesOnly = false;
 
   @override
   void initState() {
     super.initState();
+    _categoryFilter = widget.categoryFilter;
     _load();
   }
 
@@ -48,15 +55,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // final textMuted = AppThemeColors.textMuted(context);
+    final categories = ref.watch(categoryListProvider);
+    final filteredCategories = categories.where((c) {
+      final name = c.name.toLowerCase();
+      const blocked = [
+        'bank accounts',
+        'bank account',
+        'bank cards',
+        'bank card',
+        'secure notes',
+        'secure note',
+        'id documents',
+        'id document',
+        'documents',
+        'document',
+        'cards',
+        'card',
+      ];
+      return !blocked.contains(name);
+    }).toList();
     final q = _query.toLowerCase();
     final results = _items.where((item) {
-      final category = widget.categoryFilter;
-      if (category != null && category.isNotEmpty) {
-        if ((item["category"] ?? "").toString().toLowerCase() !=
-            category.toLowerCase()) {
-          return false;
-        }
+      if (_favoritesOnly && item['isFavorite'] != true) return false;
+      if (_typeFilter != null &&
+          (item['type'] ?? '').toString() != _typeFilter) {
+        return false;
+      }
+      if (_categoryFilter != null &&
+          (item['category'] ?? '').toString().toLowerCase() !=
+              _categoryFilter!.toLowerCase()) {
+        return false;
       }
       if (item["title"]?.toLowerCase().contains(q) ?? false) return true;
       final fields = (item["fields"] as Map?)?.cast<String, dynamic>() ?? {};
@@ -108,7 +136,33 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () => _openFilterSheet(context, filteredCategories),
+                  icon: const Icon(Icons.tune),
+                  label: const Text('Filters'),
+                ),
+                const SizedBox(width: 8),
+                if (_typeFilter != null ||
+                    _categoryFilter != null ||
+                    _favoritesOnly)
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _typeFilter = null;
+                        _categoryFilter = null;
+                        _favoritesOnly = false;
+                      });
+                    },
+                    child: const Text('Clear'),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
 
             if (_loading)
               const Padding(
@@ -116,7 +170,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_query.isEmpty)
-              _buildEmptyState(isDark)
+              _buildEmptyState()
             else
               _buildSearchResults(isDark, results),
           ],
@@ -125,66 +179,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildEmptyState(bool isDark) {
-    final textMuted = AppThemeColors.textMuted(context);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.primary.withValues(alpha: 0.12),
-            child: Icon(
-              Icons.search,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            "Start typing to search your vault",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Results will appear instantly",
-            style: TextStyle(fontSize: 12, color: textMuted),
-          ),
-        ],
-      ),
+  Widget _buildEmptyState() {
+    return const EmptyState(
+      icon: Icons.search,
+      title: "Start typing to search your vault",
+      subtitle: "Results will appear instantly",
     );
   }
 
   Widget _buildSearchResults(bool isDark, List<Map<String, dynamic>> results) {
     final textMuted = AppThemeColors.textMuted(context);
     if (results.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.12),
-              child: Icon(
-                Icons.search_off,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              "No results found",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "Try another keyword",
-              style: TextStyle(fontSize: 12, color: textMuted),
-            ),
-          ],
-        ),
+      return const EmptyState(
+        icon: Icons.search_off,
+        title: "No results found",
+        subtitle: "Try another keyword",
       );
     }
 
@@ -244,6 +253,86 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
 
                 Icon(Icons.arrow_forward_ios, size: 16, color: textMuted),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openFilterSheet(BuildContext context, List<dynamic> categories) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Filters',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                const Text('Type'),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('All'),
+                      selected: _typeFilter == null,
+                      onSelected: (_) => setState(() => _typeFilter = null),
+                    ),
+                    ...itemTypes.map(
+                      (t) => ChoiceChip(
+                        label: Text(t.label),
+                        selected: _typeFilter == t.key,
+                        onSelected: (_) => setState(() => _typeFilter = t.key),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Text('Category'),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('All'),
+                      selected: _categoryFilter == null,
+                      onSelected: (_) => setState(() => _categoryFilter = null),
+                    ),
+                    ...categories.map(
+                      (c) => ChoiceChip(
+                        label: Text(c.name),
+                        selected: _categoryFilter == c.name,
+                        onSelected: (_) =>
+                            setState(() => _categoryFilter = c.name),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Favorites only'),
+                  value: _favoritesOnly,
+                  onChanged: (v) => setState(() => _favoritesOnly = v),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Done'),
+                  ),
+                ),
               ],
             ),
           ),

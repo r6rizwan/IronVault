@@ -1,21 +1,24 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/theme/theme_provider.dart';
-import 'package:ironvault/features/settings/about_screen.dart';
-import 'package:ironvault/features/settings/security_tips_screen.dart';
 import 'package:ironvault/core/providers.dart';
-import 'package:ironvault/features/vault/screens/password_health_screen.dart';
+import 'package:ironvault/features/settings/screens/advanced_settings_screen.dart';
+import 'package:ironvault/features/settings/screens/security_tips_screen.dart';
 import 'change_pin_screen.dart';
 import 'package:ironvault/features/auth/screens/login_screen.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:ironvault/core/update/app_update_service.dart';
-import 'package:ironvault/core/update/update_prompt.dart';
 import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:ironvault/core/backup/backup_service.dart';
+import 'package:ironvault/core/backup/csv_import_service.dart';
+import 'package:ironvault/core/backup/csv_export_service.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
@@ -58,7 +61,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         (await storage.readValue("auto_lock_on_switch") ?? "true") == "true";
     _clipboardDisabled =
         (await storage.readValue("disable_clipboard_copy") ?? "false") ==
-            "true";
+        "true";
     _hasRecoveryKey = (await storage.readRecoveryKeyHash()) != null;
 
     if (mounted) setState(() {});
@@ -69,11 +72,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final auth = LocalAuthentication();
 
     if (value) {
-      final ok = await auth.authenticate(
-        localizedReason: "Enable biometrics for IronVault",
-        biometricOnly: true,
-      );
-      if (!ok) return;
+      try {
+        final ok = await auth.authenticate(
+          localizedReason: "Enable biometrics for IronVault",
+          biometricOnly: true,
+        );
+        if (!ok) return;
+      } on Exception catch (_) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Biometrics not set'),
+              content: const Text(
+                'Set up fingerprint or face unlock in your device settings.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+          setState(() => _biometricEnabled = false);
+        }
+        return;
+      }
       await storage.writeValue("biometrics_enabled", "true");
     } else {
       await storage.writeValue("biometrics_enabled", "false");
@@ -95,10 +120,482 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _toggleClipboardDisabled(bool value) async {
     final storage = ref.read(secureStorageProvider);
-    await storage.writeValue('disable_clipboard_copy', value ? 'true' : 'false');
+    await storage.writeValue(
+      'disable_clipboard_copy',
+      value ? 'true' : 'false',
+    );
     if (mounted) setState(() => _clipboardDisabled = value);
   }
 
+  Future<void> _exportBackup() async {
+    final ctx = context;
+    final passCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    String? error;
+
+    final confirm = await showDialog<bool>(
+      context: ctx,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setLocal) => AlertDialog(
+            title: const Text('Export Encrypted Backup'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Backup password',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmCtrl,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Confirm password',
+                    errorText: error,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Keep this password safe. You will need it to restore.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  final p1 = passCtrl.text.trim();
+                  final p2 = confirmCtrl.text.trim();
+                  if (p1.length < 6) {
+                    setLocal(() => error = 'Use at least 6 characters');
+                    return;
+                  }
+                  if (p1 != p2) {
+                    setLocal(() => error = 'Passwords do not match');
+                    return;
+                  }
+                  Navigator.pop(context, true);
+                },
+                child: const Text('Export'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (confirm != true) return;
+    if (!ctx.mounted) return;
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        title: Text('Creating backup'),
+        content: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Please wait...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      ref.read(autoLockProvider.notifier).suspendAutoLock();
+      final service = BackupService(repo: ref.read(credentialRepoProvider));
+      final file = await service.exportEncryptedBackup(
+        password: passCtrl.text.trim(),
+      );
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'IronVault encrypted backup',
+        ),
+      );
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
+    } catch (e) {
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      showDialog(
+        context: ctx,
+        builder: (_) => AlertDialog(
+          title: const Text('Backup failed'),
+          content: Text('Could not export backup: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _importBackup() async {
+    final ctx = context;
+    final pick = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['ivault'],
+    );
+    if (pick == null || pick.files.isEmpty) return;
+    final path = pick.files.first.path;
+    if (path == null) return;
+
+    final passCtrl = TextEditingController();
+    String? error;
+
+    final confirm = await showDialog<bool>(
+      context: ctx,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setLocal) => AlertDialog(
+            title: const Text('Import Backup'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Backup password',
+                    errorText: error,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This will add items to your vault.',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  final p1 = passCtrl.text.trim();
+                  if (p1.isEmpty) {
+                    setLocal(() => error = 'Enter backup password');
+                    return;
+                  }
+                  Navigator.pop(context, true);
+                },
+                child: const Text('Import'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (confirm != true) return;
+    if (!ctx.mounted) return;
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        title: Text('Importing backup'),
+        content: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Please wait...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      ref.read(autoLockProvider.notifier).suspendAutoLock();
+      final service = BackupService(repo: ref.read(credentialRepoProvider));
+      final count = await service.importEncryptedBackup(
+        file: File(path),
+        password: passCtrl.text.trim(),
+      );
+      ref.read(vaultRefreshProvider.notifier).state++;
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      showDialog(
+        context: ctx,
+        builder: (_) => AlertDialog(
+          title: const Text('Import complete'),
+          content: Text('Imported $count item(s).'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
+    } catch (e) {
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      showDialog(
+        context: ctx,
+        builder: (_) => AlertDialog(
+          title: const Text('Import failed'),
+          content: Text('Could not import backup: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _importCsv() async {
+    final ctx = context;
+    final pick = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (pick == null || pick.files.isEmpty) return;
+    final path = pick.files.first.path;
+    if (path == null) return;
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        title: Text('Importing CSV'),
+        content: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Please wait...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      ref.read(autoLockProvider.notifier).suspendAutoLock();
+      final service = CsvImportService(repo: ref.read(credentialRepoProvider));
+      final result = await service.importPasswords(File(path));
+      ref.read(vaultRefreshProvider.notifier).state++;
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      showDialog(
+        context: ctx,
+        builder: (_) => AlertDialog(
+          title: const Text('CSV import complete'),
+          content: Text(
+            'Imported ${result.imported} item(s).'
+            '${result.skipped > 0 ? " Skipped ${result.skipped} row(s)." : ""}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
+    } catch (e) {
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      showDialog(
+        context: ctx,
+        builder: (_) => AlertDialog(
+          title: const Text('CSV import failed'),
+          content: Text('Could not import CSV: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _exportCsv() async {
+    final ctx = context;
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: const Text('Export passwords to CSV'),
+        content: const Text(
+          'CSV export is not encrypted. Share it only if you trust the target.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!ctx.mounted) return;
+
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        title: Text('Exporting CSV'),
+        content: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Text('Please wait...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      ref.read(autoLockProvider.notifier).suspendAutoLock();
+      final service = CsvExportService(repo: ref.read(credentialRepoProvider));
+      final file = await service.exportPasswordsCsv();
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], text: 'IronVault CSV export'),
+      );
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
+    } catch (e) {
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      showDialog(
+        context: ctx,
+        builder: (_) => AlertDialog(
+          title: const Text('CSV export failed'),
+          content: Text('Could not export CSV: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _openBackupSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Backup',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Encrypted Backup',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                ListTile(
+                  leading: const Icon(Icons.backup_outlined),
+                  title: const Text('Export backup'),
+                  subtitle: const Text('Save an encrypted backup file'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _exportBackup();
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.download_for_offline_outlined),
+                  title: const Text('Import backup'),
+                  subtitle: const Text('Restore from a backup file'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _importBackup();
+                  },
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'CSV (Passwords)',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                ListTile(
+                  leading: const Icon(Icons.table_rows_outlined),
+                  title: const Text('Export to CSV'),
+                  subtitle: const Text('Save passwords as a CSV file'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _exportCsv();
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.table_chart_outlined),
+                  title: const Text('Import from CSV'),
+                  subtitle: const Text('Import passwords from a CSV file'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _importCsv();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _logout() async {
     Navigator.pushAndRemoveUntil(
@@ -175,17 +672,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
 
           _autoLockTile(context, ref),
-
           _settingsTile(
             context,
-            icon: Icons.health_and_safety,
-            title: "Password Health",
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PasswordHealthScreen()),
-              );
-            },
+            icon: Icons.backup_outlined,
+            title: "Backup",
+            onTap: _openBackupSheet,
           ),
 
           const SizedBox(height: 20),
@@ -218,120 +709,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onChanged: _toggleClipboardDisabled,
           ),
 
-          _settingsTile(
-            context,
-            icon: Icons.system_update_alt,
-            title: "Check for Updates",
-            onTap: () async {
-              if (!context.mounted) return;
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (_) {
-                  return const AlertDialog(
-                    title: Text('Checking for updates'),
-                    content: Row(
-                      children: [
-                        SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 12),
-                        Text('Please wait...'),
-                      ],
-                    ),
-                  );
-                },
-              );
-
-              final info = await AppUpdateService().checkForUpdate();
-              if (!context.mounted) return;
-              Navigator.pop(context);
-
-              if (info == null) {
-                showDialog(
-                  context: context,
-                  builder: (_) {
-                    return AlertDialog(
-                      title: const Text('No update found'),
-                      content: const Text(
-                        'You already have the latest version.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('OK'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-                return;
-              }
-
-              showDialog(
-                context: context,
-                builder: (_) {
-                  return AlertDialog(
-                    title: const Text('Found one update'),
-                    content: Text(
-                      'Version ${info.latestVersion} is available.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Not now'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          UpdatePrompt.show(context, info);
-                        },
-                        child: const Text('Download'),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          ),
-
           const SizedBox(height: 20),
-          _sectionTitle("Help & Info"),
+          _sectionTitle("More"),
 
           _settingsTile(
             context,
-            icon: Icons.security,
-            title: "Security Tips",
+            icon: Icons.tune,
+            title: "Advanced",
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SecurityTipsScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const AdvancedSettingsScreen(),
+                ),
               );
-            },
-          ),
-
-          _settingsTile(
-            context,
-            icon: Icons.info_outline,
-            title: "About",
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AboutScreen()),
-              );
-            },
-          ),
-
-          _settingsTile(
-            context,
-            icon: Icons.bug_report_outlined,
-            title: "Report an Issue",
-            onTap: () async {
-              const url = 'https://github.com/r6rizwan/Password-Manager/issues';
-              final uri = Uri.parse(url);
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
             },
           ),
 

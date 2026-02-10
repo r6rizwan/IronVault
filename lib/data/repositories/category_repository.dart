@@ -1,6 +1,7 @@
 // ignore_for_file: depend_on_referenced_packages
 
 import 'dart:async';
+import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -101,6 +102,7 @@ class CategoryRepository {
       'cards',
       'card',
     ];
+    final removed = <String>[];
     for (final name in blocked) {
       if (names.contains(name)) {
         await database.delete(
@@ -109,7 +111,12 @@ class CategoryRepository {
           whereArgs: [name],
         );
         names.remove(name);
+        removed.add(name);
       }
+    }
+
+    if (removed.isNotEmpty) {
+      await _appendMigrationLog(removed);
     }
 
     Future<void> insertIfMissing({
@@ -156,6 +163,14 @@ class CategoryRepository {
       iconKey: 'credit_card',
       colorValue: 0xFFEF4444,
     );
+  }
+
+  Future<void> _appendMigrationLog(List<String> removed) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File(join(dir.path, 'migration.log'));
+    final line =
+        '[${DateTime.now().toIso8601String()}] Removed categories: ${removed.join(', ')}\n';
+    await file.writeAsString(line, mode: FileMode.append, flush: true);
   }
 
   Future<VaultCategory> insert(VaultCategory c) async {

@@ -15,6 +15,7 @@ import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/utils/pin_kdf.dart';
 import 'package:ironvault/features/auth/screens/forgot_pin_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -168,9 +169,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       _playWrongPinAnimation();
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Invalid PIN")));
+        showAppToast(context, 'Invalid PIN');
       }
 
       _clearAll();
@@ -274,98 +273,113 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       end: Alignment.bottomRight,
     );
 
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: bgGradient),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 32),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        navKey.currentState?.pop();
+      },
+      child: Scaffold(
+        body: Container(
+          decoration: BoxDecoration(gradient: bgGradient),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 32,
                 ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 4),
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.12),
-                      child: Icon(
-                        Icons.lock_outline,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 26,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      "Enter your PIN",
-                      style: Theme.of(
-                        context,
-                      ).textTheme.titleMedium?.copyWith(color: textColor),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      "Unlock IronVault",
-                      style: TextStyle(fontSize: 12, color: textMuted),
-                    ),
-                    const SizedBox(height: 18),
-
-                    AnimatedBuilder(
-                      animation: _shakeController,
-                      builder: (context, child) {
-                        final progress = _shakeController.value;
-                        final offset = progress > 0
-                            ? (8 * (1 - (progress * 2 - 1).abs()))
-                            : 0.0;
-
-                        return Transform.translate(
-                          offset: Offset(offset * (progress > 0.5 ? -1 : 1), 0),
-                          child: child,
-                        );
-                      },
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(pinLength, (i) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: _otpBox(index: i),
-                          );
-                        }),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: () {
-                            navKey.currentState?.push(
-                              MaterialPageRoute(
-                                builder: (_) => const ForgotPinScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text("Forgot PIN?"),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 4),
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.12),
+                        child: Icon(
+                          Icons.lock_outline,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 26,
                         ),
-                        const Spacer(),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "Enter your PIN",
+                        style: Theme.of(
+                          context,
+                        ).textTheme.titleMedium?.copyWith(color: textColor),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        "Unlock IronVault",
+                        style: TextStyle(fontSize: 12, color: textMuted),
+                      ),
+                      const SizedBox(height: 18),
 
-                    if (_loading) const CircularProgressIndicator(),
-                  ],
+                      AnimatedBuilder(
+                        animation: _shakeController,
+                        builder: (context, child) {
+                          final progress = _shakeController.value;
+                          final offset = progress > 0
+                              ? (8 * (1 - (progress * 2 - 1).abs()))
+                              : 0.0;
+
+                          return Transform.translate(
+                            offset: Offset(
+                              offset * (progress > 0.5 ? -1 : 1),
+                              0,
+                            ),
+                            child: child,
+                          );
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(pinLength, (i) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
+                              child: _otpBox(index: i),
+                            );
+                          }),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      Row(
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              navKey.currentState?.push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ForgotPinScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text("Forgot PIN?"),
+                          ),
+                          const Spacer(),
+                        ],
+                      ),
+
+                      if (_loading) const CircularProgressIndicator(),
+                    ],
+                  ),
                 ),
               ),
             ),
