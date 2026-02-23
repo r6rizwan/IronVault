@@ -8,20 +8,22 @@ final autoLockProvider = NotifierProvider<AutoLockController, bool>(
 class AutoLockController extends Notifier<bool> {
   DateTime? _pausedAt;
   bool _suspended = false;
-  bool _lockOnSwitch = true;
-  bool _loadedPref = false;
-  static const int _minBackgroundSeconds = 2;
+  bool _forceImmediateOnResume = false;
+  // Ignore ultra-brief inactive/resume transitions (notification shade flicker).
+  // Keep this low so phone lock/app switch still triggers lock reliably.
+  static const int _minBackgroundSeconds = 1;
 
   @override
   bool build() {
-    _loadPreference();
     return false; // unlocked by default
   }
 
   /// Called when app goes inactive OR paused
-  void markPaused() {
-    if (_suspended || !_lockOnSwitch) return;
+  void markPaused({bool forceImmediate = false}) {
+    if (_suspended) return;
     _pausedAt = DateTime.now();
+    // Preserve a stronger force flag if any lifecycle event marks it true.
+    _forceImmediateOnResume = _forceImmediateOnResume || forceImmediate;
   }
 
   /// Decide if app should lock when resumed
@@ -31,11 +33,23 @@ class AutoLockController extends Notifier<bool> {
       return;
     }
     final storage = ref.read(secureStorageProvider);
+    final lockOnSwitchValue = await storage.readValue('auto_lock_on_switch');
+    final lockOnSwitchEnabled = (lockOnSwitchValue ?? 'true') == 'true';
+    if (!lockOnSwitchEnabled) {
+      _resetPauseState();
+      return;
+    }
     final timer = await storage.readValue("auto_lock_timer") ?? "immediately";
 
     if (_pausedAt == null) return;
     final elapsed = DateTime.now().difference(_pausedAt!).inSeconds;
-    if (elapsed < _minBackgroundSeconds) {
+    if (_forceImmediateOnResume) {
+      state = true;
+      _resetPauseState();
+      return;
+    }
+
+    if (!_forceImmediateOnResume && elapsed < _minBackgroundSeconds) {
       _resetPauseState();
       return;
     }
@@ -70,18 +84,8 @@ class AutoLockController extends Notifier<bool> {
   }
 
   Future<void> setLockOnSwitch(bool enabled) async {
-    _lockOnSwitch = enabled;
     final storage = ref.read(secureStorageProvider);
     await storage.writeValue('auto_lock_on_switch', enabled ? 'true' : 'false');
-  }
-
-  Future<void> _loadPreference() async {
-    if (_loadedPref) return;
-    _loadedPref = true;
-    final storage = ref.read(secureStorageProvider);
-    final value = await storage.readValue('auto_lock_on_switch');
-    if (value == null) return;
-    _lockOnSwitch = value == 'true';
   }
 
   /// Temporarily suspend auto-lock (e.g., while launching external scanner)
@@ -89,13 +93,17 @@ class AutoLockController extends Notifier<bool> {
     _suspended = true;
   }
 
-  /// Resume auto-lock and clear any pause state
-  void resumeAutoLock() {
+  /// Resume auto-lock. In external flow returns, keep default `clearPauseState`
+  /// true so overlay transitions do not trigger lock.
+  void resumeAutoLock({bool clearPauseState = true}) {
     _suspended = false;
-    _resetPauseState();
+    if (clearPauseState) {
+      _resetPauseState();
+    }
   }
 
   void _resetPauseState() {
     _pausedAt = null;
+    _forceImmediateOnResume = false;
   }
 }

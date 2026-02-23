@@ -27,17 +27,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   String? _typeFilter;
   String? _categoryFilter;
   bool _favoritesOnly = false;
+  late final ProviderSubscription<int> _refreshSub;
 
   @override
   void initState() {
     super.initState();
     _categoryFilter = widget.categoryFilter;
     _load();
+    _refreshSub = ref.listenManual<int>(
+      vaultRefreshProvider,
+      (_, __) => _load(),
+    );
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _refreshSub.close();
     super.dispose();
   }
 
@@ -126,6 +132,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 decoration: InputDecoration(
                   hintText: "Search passwords, notes, cards, documents…",
                   prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _controller.clear();
+                            setState(() => _query = "");
+                          },
+                        ),
                   filled: true,
                   fillColor: isDark ? Colors.white10 : const Color(0xFFF1F5FB),
                   border: OutlineInputBorder(
@@ -141,7 +156,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Row(
               children: [
                 TextButton.icon(
-                  onPressed: () => _openFilterSheet(context, filteredCategories),
+                  onPressed: () =>
+                      _openFilterSheet(context, filteredCategories),
                   icon: const Icon(Icons.tune),
                   label: const Text('Filters'),
                 ),

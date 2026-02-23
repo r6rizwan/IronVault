@@ -13,6 +13,7 @@ import 'package:ironvault/features/navigation/app_scaffold.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 
 class AuthChoiceScreen extends ConsumerStatefulWidget {
+  static const String routeName = '/auth-choice';
   const AuthChoiceScreen({super.key});
 
   @override
@@ -49,13 +50,16 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
   }
 
   Future<void> _useBiometrics() async {
+    final autoLock = ref.read(autoLockProvider.notifier);
     try {
       if (!_biometricEnabled || !_biometricAvailable) return;
 
+      autoLock.suspendAutoLock();
       final ok = await _auth.authenticate(
         localizedReason: "Unlock IronVault",
         biometricOnly: true,
       );
+      autoLock.resumeAutoLock();
 
       if (!ok) {
         // User canceled or failed; don't show an error here.
@@ -82,6 +86,8 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
       }
     } catch (_) {
       // Swallow generic errors to avoid noisy UX on cancel.
+    } finally {
+      autoLock.resumeAutoLock();
     }
   }
 

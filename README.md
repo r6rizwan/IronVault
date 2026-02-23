@@ -1,100 +1,126 @@
 # IronVault Password Manager
 
-A modern, offline-first password manager built with Flutter. IronVault stores all vault items locally with AES-256 encryption and supports PIN + biometric authentication.
+IronVault is an offline-first password manager built with Flutter.  
+It stores vault data locally on the device and protects it with strong encryption and app-level authentication.
 
-## Highlights
-- Offline-first: all data stored locally on device
-- AES-256 encryption for every item
-- Master PIN + optional biometrics
-- Dynamic item types (passwords, cards, banks, notes, documents)
-- Document scanning (Android)
-- Categories and favorites
-- Password health checks
-- In-app update prompt via GitHub Releases
+## Project Overview
+- Local-first vault for passwords and sensitive records
+- Master PIN authentication with optional biometric unlock
+- Encrypted storage for vault entries
+- Android document scan/import support
+- Manual and startup update checks via GitHub Releases
 
-## Screens & Flow
-1. Splash → Onboarding
-2. Create Master PIN (first install only)
-3. Enable biometrics (optional)
-4. Auth choice: PIN or biometrics
-5. Home → Vault / Search / Settings
+## Key Features
+- Vault item types:
+  - Passwords
+  - Bank accounts
+  - Cards
+  - Secure notes
+  - Documents
+- Search and filtering
+- Category support
+- Password health analytics
+- Auto-lock with configurable timer and app-switch behavior
+- Recovery key flow for PIN recovery
+- Export/import flows (JSON + CSV paths in app)
+
+## Security Model
+- Vault data is encrypted before storage
+- Master PIN is stored as a hash, not plain text
+- Optional biometric auth uses platform APIs
+- App uses secure window flags on Android to reduce screen capture/recents leakage
+
+## Ownership, License, and Brand Use
+This repository is licensed under MIT for source code reuse as defined in `LICENSE`.
+
+Important:
+- The MIT license covers code.
+- The project name **IronVault**, logo, icon, and brand assets are not granted as a trademark license.
+- If you fork or redistribute, use your own app name, package ID, and branding.
 
 ## Tech Stack
 - Flutter
+- Dart
 - Riverpod
 - Drift (SQLite)
 - flutter_secure_storage
 - local_auth
-- encrypt (AES-GCM)
+- AES-based encryption utilities
 
 ## Supported Platforms
-- Android (primary)
-- iOS (not yet tested)
+- Android: supported
+- iOS: code exists but not production-validated in this repo
 
-## Setup
+## Run Locally
 ```bash
 flutter pub get
 flutter run
 ```
 
-## Build (Android)
+## Build Release
+APK:
 ```bash
 flutter build apk --release
 ```
 
-Build App Bundle (Play Store format):
+AAB:
 ```bash
 flutter build appbundle --release
 ```
 
-APK output:
-```
-build/app/outputs/flutter-apk/app-release.apk
-```
+Output paths:
+- `build/app/outputs/flutter-apk/app-release.apk`
+- `build/app/outputs/bundle/release/app-release.aab`
 
-## Releases
-If you upload demo builds, place them in:
-```
-/releases
-```
-Label builds clearly as **Demo build / Not Play Store uploaded**.
+## Versioning
+Version is maintained in `pubspec.yaml`:
+- `versionName` comes from `version`
+- `versionCode` comes from the build number suffix (for example `1.0.2+3`)
+
+Use Git tags for releases:
+- Example: `v1.0.2+3`
 
 ## GitHub Releases Update Flow
-IronVault checks your GitHub Releases and shows a soft update prompt if a newer version is available.
+The app checks your GitHub Releases and can indicate when a newer version exists.
 
-Steps:
-1. Build a release APK:
-   ```bash
-   flutter build apk --release
-   ```
-2. Create a GitHub Release with a version tag like `v1.0.2`
-3. Upload `app-release.apk` to the release assets
+Recommended release process:
+1. Update version in `pubspec.yaml`
+2. Build release APK/AAB
+3. Create GitHub release with matching tag
+4. Upload release artifact(s)
 
-The app compares its version with the release tag and prompts the user to update.
-
-## Configuration
-Update checker uses your public repo:
-```
-lib/core/update/app_update_service.dart
-```
-
-## Project Structure
-```
+## Repository Structure
+```text
 lib/
   core/
-    theme/
-    update/
-    utils/
   data/
   features/
+android/
+ios/
+assets/
 ```
 
-## Notes
-- Android only for document scanning
-- Biometric support depends on device hardware and enrollment
+## Security Rules For Contributors
+Never commit signing credentials or keystores:
+- `android/app/keystore.jks`
+- `android/key.properties`
+- `*.keystore`
+- `*.jks`
 
-## Repository Disclaimer
-This repository is **not** a Google Play submission. No Play Store compliance guarantees are implied.
+Use example env files for configuration:
+- `.env.example` (if needed)
 
-## License
-MIT
+## Quality Commands
+```bash
+dart format .
+flutter analyze
+```
+
+## Known Limitations
+- Some platform behaviors (recents preview/privacy handling) can vary by OEM launcher and Android version.
+- Biometric availability depends on device hardware and enrollment state.
+- Autofill service integration is currently disabled/limited by design decisions in this project stage.
+
+## Disclaimer
+This repository is not a Play Store submission package and does not claim Play Store policy compliance by default.
+

@@ -43,6 +43,8 @@ class _EnableBiometricsScreenState
   // Replace _enableBiometrics() with this:
   Future<void> _enableBiometrics() async {
     try {
+      final autoLock = ref.read(autoLockProvider.notifier);
+      autoLock.suspendAutoLock();
       // 1) Basic capability checks
       final bool canCheck = await auth.canCheckBiometrics;
       final bool isSupported = await auth.isDeviceSupported();
@@ -70,6 +72,7 @@ class _EnableBiometricsScreenState
             ],
           ),
         );
+        autoLock.resumeAutoLock();
         return;
       }
 
@@ -96,6 +99,7 @@ class _EnableBiometricsScreenState
             ],
           ),
         );
+        autoLock.resumeAutoLock();
         return;
       }
 
@@ -104,6 +108,7 @@ class _EnableBiometricsScreenState
         localizedReason: 'Confirm to enable biometric unlock for your vault',
         biometricOnly: true,
       );
+      autoLock.resumeAutoLock();
 
       if (kDebugMode) {
         debugPrint('[BIOMETRIC] authenticate result: $didAuthenticate');
@@ -124,13 +129,17 @@ class _EnableBiometricsScreenState
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
+          MaterialPageRoute(
+            builder: (_) => const AuthChoiceScreen(),
+            settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+          ),
         );
       } else {
         if (!mounted) return;
         showAppToast(context, 'Biometric cancelled. Use PIN instead.');
       }
     } catch (e, st) {
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (kDebugMode) {
         debugPrint('[BIOMETRIC] error: $e\n$st');
       }
@@ -149,7 +158,10 @@ class _EnableBiometricsScreenState
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
+      MaterialPageRoute(
+        builder: (_) => const AuthChoiceScreen(),
+        settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+      ),
     );
   }
 

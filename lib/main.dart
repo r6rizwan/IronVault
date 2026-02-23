@@ -27,16 +27,38 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
+  static const MethodChannel _lifecycleChannel =
+      MethodChannel('ironvault/lifecycle');
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _lifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
   }
 
   @override
   void dispose() {
+    _lifecycleChannel.setMethodCallHandler(null);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  Future<void> _handleNativeLifecycleCall(MethodCall call) async {
+    if (call.method == 'userLeaveHint' ||
+        call.method == 'appPaused' ||
+        call.method == 'appBackgrounded') {
+      ref.read(autoLockProvider.notifier).markPaused(forceImmediate: true);
+    }
+  }
+
+  bool _isAuthChoiceVisible() {
+    Route<dynamic>? currentRoute;
+    navKey.currentState?.popUntil((route) {
+      currentRoute = route;
+      return true;
+    });
+    return currentRoute?.settings.name == AuthChoiceScreen.routeName;
   }
 
   @override
@@ -44,19 +66,26 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     final autoLock = ref.read(autoLockProvider.notifier);
 
     if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      // App moved to background or inactive --> start timer
-      autoLock.markPaused();
+        state == AppLifecycleState.hidden) {
+      // App moved to background (full pause) --> lock immediately on resume
+      autoLock.markPaused(forceImmediate: true);
     }
 
     if (state == AppLifecycleState.resumed) {
       Future.microtask(() async {
+        // Clear any stale suspension (e.g. interrupted external flow),
+        // but keep pause timestamps so real background transitions can lock.
+        autoLock.resumeAutoLock(clearPauseState: false);
         await autoLock.evaluateLockOnResume();
         final locked = ref.read(autoLockProvider);
 
         if (locked) {
+          if (_isAuthChoiceVisible()) return;
           navKey.currentState?.pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
+            MaterialPageRoute(
+              builder: (_) => const AuthChoiceScreen(),
+              settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+            ),
             (route) => false,
           );
         }
@@ -150,7 +179,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     // User already set everything → go to auth choice
     navKey.currentState?.pushReplacement(
-      MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
+      MaterialPageRoute(
+        builder: (_) => const AuthChoiceScreen(),
+        settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+      ),
     );
   }
 

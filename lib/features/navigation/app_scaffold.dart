@@ -159,7 +159,10 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
           onPressed: () {
             ref.read(autoLockProvider.notifier).lockNow();
             navKey.currentState?.pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
+              MaterialPageRoute(
+                builder: (_) => const AuthChoiceScreen(),
+                settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+              ),
               (_) => false,
             );
           },

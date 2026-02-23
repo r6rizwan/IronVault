@@ -858,147 +858,158 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     }).toList();
     final isDocument = _typeKey == 'document';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.existingItem == null ? 'Add Item' : 'Edit Item'),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.pop(context, false);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context, false),
           ),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 16,
-                  offset: const Offset(0, -6),
-                ),
-              ],
+          title: Text(widget.existingItem == null ? 'Add Item' : 'Edit Item'),
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
             ),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _saving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, -6),
                   ),
-                  textStyle: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                ],
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                child: _saving
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                  child: _saving
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          widget.existingItem == null
+                              ? 'Save Item'
+                              : 'Save Changes',
                         ),
-                      )
-                    : Text(
-                        widget.existingItem == null
-                            ? 'Save Item'
-                            : 'Save Changes',
-                      ),
+                ),
               ),
             ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
-            child: Form(
-              key: _formKey,
-              child: AutofillGroup(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _dropdownField(
-                      label: 'Type',
-                      valueText: type.label,
-                      onTap: () => _openTypePicker(context),
-                    ),
-                    const SizedBox(height: 16),
-
-                    KeyedSubtree(
-                      key: _titleKey,
-                      child: CommonTextField(
-                        label: 'Title',
-                        controller: _titleController,
-                        requiredField: true,
-                        errorText: _titleError,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    if (_typeKey == 'password') ...[
+        body: SafeArea(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () => FocusScope.of(context).unfocus(),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+              child: Form(
+                key: _formKey,
+                child: AutofillGroup(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       _dropdownField(
-                        label: 'Password category (optional)',
-                        valueText: _selectedCategory ?? 'None',
-                        onTap: () =>
-                            _openCategoryPicker(context, filteredCategories),
+                        label: 'Type',
+                        valueText: type.label,
+                        onTap: () => _openTypePicker(context),
                       ),
-                      const SizedBox(height: 18),
-                    ],
+                      const SizedBox(height: 16),
 
-                    if (isDocument) ...[
-                      _scanSection(context),
-                      const SizedBox(height: 12),
-                    ],
-
-                    ...type.fields.map((field) {
-                      if (field.key == 'scans') {
-                        return const SizedBox.shrink();
-                      }
-                      final controller = _controllers[field.key]!;
-                      final obscure = _obscure[field.key] ?? false;
-                      final suffix = field.obscure
-                          ? IconButton(
-                              icon: Icon(
-                                obscure
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscure[field.key] = !obscure;
-                                });
-                              },
-                            )
-                          : null;
-
-                      return Padding(
-                        key: _fieldKeys[field.key],
-                        padding: const EdgeInsets.only(bottom: 14),
+                      KeyedSubtree(
+                        key: _titleKey,
                         child: CommonTextField(
-                          label: field.label,
-                          controller: controller,
-                          obscure: field.obscure ? obscure : false,
-                          keyboardType: field.keyboardType,
-                          inputFormatters: _formattersForField(field.key),
-                          maxLines: field.maxLines,
-                          suffix: suffix,
-                          requiredField: field.required,
-                          errorText: _fieldErrors[field.key],
+                          label: 'Title',
+                          controller: _titleController,
+                          requiredField: true,
+                          errorText: _titleError,
                         ),
-                      );
-                    }),
+                      ),
+                      const SizedBox(height: 16),
 
-                    const SizedBox(height: 6),
-                  ],
+                      if (_typeKey == 'password') ...[
+                        _dropdownField(
+                          label: 'Password category (optional)',
+                          valueText: _selectedCategory ?? 'None',
+                          onTap: () =>
+                              _openCategoryPicker(context, filteredCategories),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
+
+                      if (isDocument) ...[
+                        _scanSection(context),
+                        const SizedBox(height: 12),
+                      ],
+
+                      ...type.fields.map((field) {
+                        if (field.key == 'scans') {
+                          return const SizedBox.shrink();
+                        }
+                        final controller = _controllers[field.key]!;
+                        final obscure = _obscure[field.key] ?? false;
+                        final suffix = field.obscure
+                            ? IconButton(
+                                icon: Icon(
+                                  obscure
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscure[field.key] = !obscure;
+                                  });
+                                },
+                              )
+                            : null;
+
+                        return Padding(
+                          key: _fieldKeys[field.key],
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: CommonTextField(
+                            label: field.label,
+                            controller: controller,
+                            obscure: field.obscure ? obscure : false,
+                            keyboardType: field.keyboardType,
+                            inputFormatters: _formattersForField(field.key),
+                            maxLines: field.maxLines,
+                            suffix: suffix,
+                            requiredField: field.required,
+                            errorText: _fieldErrors[field.key],
+                          ),
+                        );
+                      }),
+
+                      const SizedBox(height: 6),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -9,8 +9,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/constants.dart';
 import 'package:ironvault/core/constants/item_types.dart';
 import 'package:ironvault/core/providers.dart';
+import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/features/add/screens/add_item_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ViewCredentialScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> item;
@@ -232,6 +235,184 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     });
   }
 
+  Future<void> _reloadCurrentItem() async {
+    final repo = ref.read(credentialRepoProvider);
+    final all = await repo.getAllDecrypted();
+    final currentId = item["id"];
+    final match = all.where((e) => e["id"] == currentId).toList();
+    if (match.isEmpty || !mounted) return;
+    setState(() {
+      item = Map<String, dynamic>.from(match.first);
+      _obscureFields.clear();
+      _initObscureStates();
+    });
+  }
+
+  List<_ShareEntry> _buildShareEntries() {
+    final typeKey = (item["type"] ?? "password").toString();
+    final typeDef = typeByKey(typeKey);
+    final fields =
+        (item["fields"] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+
+    final entries = <_ShareEntry>[
+      _ShareEntry(label: 'Title', value: (item["title"] ?? "").toString()),
+      _ShareEntry(label: 'Type', value: typeDef.label),
+    ];
+
+    final category = (item["category"] ?? "").toString().trim();
+    if (category.isNotEmpty) {
+      entries.add(_ShareEntry(label: 'Category', value: category));
+    }
+
+    for (final field in typeDef.fields) {
+      if (field.key == 'scans') {
+        final raw = (fields['scans'] ?? '').toString().trim();
+        if (raw.isEmpty) continue;
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is List && decoded.isNotEmpty) {
+            entries.add(
+              _ShareEntry(label: 'Scanned Pages', value: '${decoded.length}'),
+            );
+          }
+        } catch (_) {}
+        continue;
+      }
+
+      final value = (fields[field.key] ?? '').toString().trim();
+      if (value.isEmpty) continue;
+      entries.add(
+        _ShareEntry(
+          label: field.label,
+          value: value,
+          selected: !field.obscure,
+        ),
+      );
+    }
+
+    return entries;
+  }
+
+  String _buildShareTextFromEntries(List<_ShareEntry> entries) {
+    final buffer = StringBuffer();
+    buffer.writeln('IronVault Credential');
+    for (final entry in entries) {
+      if (!entry.selected) continue;
+      buffer.writeln('${entry.label}: ${entry.value}');
+    }
+    return buffer.toString().trim();
+  }
+
+  Future<void> _shareCredential() async {
+    final entries = _buildShareEntries();
+    if (entries.isEmpty) {
+      showAppToast(context, 'Nothing to share');
+      return;
+    }
+
+    final shouldShare = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            final hasSelection = entries.any((e) => e.selected);
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Share Credential',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Select fields to include.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppThemeColors.textMuted(context),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 320,
+                      child: ListView.builder(
+                        itemCount: entries.length,
+                        itemBuilder: (_, i) {
+                          final e = entries[i];
+                          return SwitchListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(e.label),
+                            subtitle: Text(
+                              e.value,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            value: e.selected,
+                            onChanged: (v) => setLocal(() => e.selected = v),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        const Spacer(),
+                        ElevatedButton(
+                          onPressed: hasSelection
+                              ? () => Navigator.pop(ctx, true)
+                              : null,
+                          child: const Text('Share'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (shouldShare != true) return;
+    final shareText = _buildShareTextFromEntries(entries);
+    if (shareText.trim().isEmpty) {
+      showAppToast(context, 'Select at least one field to share');
+      return;
+    }
+
+    final autoLock = ref.read(autoLockProvider.notifier);
+    autoLock.suspendAutoLock();
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          text: shareText,
+          subject: (item["title"] ?? "Credential").toString(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showAppToast(context, 'Share failed: $e');
+    } finally {
+      autoLock.resumeAutoLock();
+    }
+  }
+
   Widget _sectionTitle(String title) {
     final textMuted = AppThemeColors.textMuted(context);
     return Padding(
@@ -313,15 +494,21 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
             icon: const Icon(Icons.edit),
             tooltip: "Edit",
             onPressed: () async {
-              await Navigator.push(
+              final updated = await Navigator.push<bool>(
                 context,
                 MaterialPageRoute(
                   builder: (_) => AddItemScreen(existingItem: item),
                 ),
               );
-
-              if (mounted) Navigator.pop(context);
+              if (updated == true) {
+                await _reloadCurrentItem();
+              }
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: "Share",
+            onPressed: _shareCredential,
           ),
           IconButton(
             icon: const Icon(Icons.delete),
@@ -499,4 +686,16 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
       ),
     );
   }
+}
+
+class _ShareEntry {
+  _ShareEntry({
+    required this.label,
+    required this.value,
+    this.selected = true,
+  });
+
+  final String label;
+  final String value;
+  bool selected;
 }

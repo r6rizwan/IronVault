@@ -64,7 +64,10 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const AuthChoiceScreen()),
+      MaterialPageRoute(
+        builder: (_) => const AuthChoiceScreen(),
+        settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+      ),
     );
   }
 

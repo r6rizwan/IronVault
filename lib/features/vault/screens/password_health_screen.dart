@@ -77,6 +77,20 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
     final old = passwordItems.where(
       (i) => _isOld(i['updatedAt'] as DateTime?, i['createdAt'] as DateTime?),
     );
+    final total = passwordItems.length;
+    final score = total == 0
+        ? 100
+        : (100 -
+                ((weak.length / total) * 40) -
+                ((reused.length / total) * 35) -
+                ((old.length / total) * 25))
+            .round()
+            .clamp(0, 100);
+    final scoreColor = score >= 80
+        ? const Color(0xFF10B981)
+        : score >= 60
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFFEF4444);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Password Health')),
@@ -87,9 +101,11 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
-                  _summaryCard(
+                  _scoreCard(
                     context,
-                    total: passwordItems.length,
+                    score: score,
+                    scoreColor: scoreColor,
+                    total: total,
                     weak: weak.length,
                     reused: reused.length,
                     old: old.length,
@@ -115,8 +131,10 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
     );
   }
 
-  Widget _summaryCard(
+  Widget _scoreCard(
     BuildContext context, {
+    required int score,
+    required Color scoreColor,
     required int total,
     required int weak,
     required int reused,
@@ -143,19 +161,65 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
               Icon(Icons.health_and_safety, size: 18),
               SizedBox(width: 8),
               Text(
-                'Overview',
+                'Security Score',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _statTile('Total', total.toString()),
-              _statTile('Weak', weak.toString(), color: Colors.orange),
-              _statTile('Reused', reused.toString(), color: Colors.redAccent),
-              _statTile('Old', old.toString(), color: Colors.amber),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: scoreColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      score.toString(),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: scoreColor,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Score',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppThemeColors.textMuted(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  total == 0
+                      ? 'Add passwords to see your score.'
+                      : 'Review weak, reused, and old passwords.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppThemeColors.textMuted(context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _metricChip('Total', total.toString()),
+              _metricChip('Weak', weak.toString(), color: Colors.orange),
+              _metricChip('Reused', reused.toString(), color: Colors.redAccent),
+              _metricChip('Old', old.toString(), color: Colors.amber),
             ],
           ),
         ],
@@ -163,26 +227,31 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
     );
   }
 
-  Widget _statTile(String label, String value, {Color? color}) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: color ?? Theme.of(context).colorScheme.primary,
+  Widget _metricChip(String label, String value, {Color? color}) {
+    final textColor = color ?? Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: textColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(fontWeight: FontWeight.w700, color: textColor),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppThemeColors.textMuted(context),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppThemeColors.textMuted(context),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
