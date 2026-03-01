@@ -49,3 +49,6 @@ android/app/keystore.jks
 android/key.properties
 *.keystore
 *.jks
+
+# Local-only planning docs
+ROADMAP.md
