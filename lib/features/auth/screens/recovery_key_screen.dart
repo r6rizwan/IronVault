@@ -1,13 +1,12 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'dart:async';
-import 'package:ironvault/core/constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
-import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/features/vault/screens/enable_biometrics_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
+import 'package:local_auth/local_auth.dart';
 
 class RecoveryKeyScreen extends ConsumerStatefulWidget {
   final String recoveryKey;
@@ -26,29 +25,46 @@ class RecoveryKeyScreen extends ConsumerStatefulWidget {
 }
 
 class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
-  Timer? _clipboardTimer;
-  bool _clipboardDisabled = false;
   late final AutoLockController _autoLock;
+  final LocalAuthentication _auth = LocalAuthentication();
+  bool _isRevealed = false;
+
   @override
   void initState() {
     super.initState();
     _autoLock = ref.read(autoLockProvider.notifier);
     _autoLock.suspendAutoLock();
-    _loadPrefs();
-  }
-
-  Future<void> _loadPrefs() async {
-    final storage = ref.read(secureStorageProvider);
-    _clipboardDisabled =
-        (await storage.readValue('disable_clipboard_copy') ?? 'false') == 'true';
-    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _clipboardTimer?.cancel();
     _autoLock.resumeAutoLock();
     super.dispose();
+  }
+
+  String get _maskedRecoveryKey {
+    return widget.recoveryKey.replaceAll(RegExp(r'[A-Z0-9]'), '•');
+  }
+
+  Future<void> _toggleRecoveryKeyVisibility() async {
+    if (_isRevealed) {
+      setState(() => _isRevealed = false);
+      return;
+    }
+
+    try {
+      // TODO: Add FLAG_SECURE via flutter_windowmanager to block screenshots
+      final didAuthenticate = await _auth.authenticate(
+        localizedReason: 'Re-authenticate to reveal your recovery key',
+        biometricOnly: true,
+      );
+
+      if (!mounted || !didAuthenticate) return;
+      setState(() => _isRevealed = true);
+    } catch (_) {
+      if (!mounted) return;
+      showAppToast(context, 'Biometric verification failed');
+    }
   }
 
   @override
@@ -78,42 +94,68 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      widget.recoveryKey,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Text(
+                              widget.recoveryKey,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                          if (!_isRevealed)
+                            Positioned.fill(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                child: Container(
+                                  color: Theme.of(context)
+                                      .scaffoldBackgroundColor
+                                      .withValues(alpha: 0.55),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    _maskedRecoveryKey,
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 1,
+                                      color: AppThemeColors.text(context),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                  if (!_clipboardDisabled)
-                    IconButton(
-                      icon: const Icon(Icons.copy),
-                      onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: widget.recoveryKey),
-                        );
-                        _clipboardTimer?.cancel();
-                        _clipboardTimer = Timer(
-                          Duration(seconds: AppConstants.clipboardClearSeconds),
-                          () async {
-                            final data = await Clipboard.getData('text/plain');
-                            if (data?.text == widget.recoveryKey) {
-                              await Clipboard.setData(
-                                const ClipboardData(text: ''),
-                              );
-                            }
-                          },
-                        );
-                        if (context.mounted) {
-                          showAppToast(context, 'Recovery key copied');
-                        }
-                      },
+                  IconButton(
+                    icon: Icon(
+                      _isRevealed ? Icons.visibility_off : Icons.visibility,
                     ),
+                    tooltip: _isRevealed ? 'Hide key' : 'Reveal key',
+                    onPressed: _toggleRecoveryKeyVisibility,
+                  ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Write this key down and store it somewhere safe.\nDo not screenshot or copy it.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.amber,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const Spacer(),

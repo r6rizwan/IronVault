@@ -50,5 +50,17 @@ android/key.properties
 *.keystore
 *.jks
 
+# Environment files
+.env
+.env.*
+*.local
+
+# Firebase config
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# Local machine config
+android/local.properties
+
 # Local-only planning docs
 ROADMAP.md
