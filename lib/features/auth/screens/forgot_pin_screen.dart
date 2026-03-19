@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/utils/encryption_util.dart';
+import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_verify_screen.dart';
 import 'package:ironvault/features/auth/screens/setup_pin_screen.dart';
@@ -38,6 +39,7 @@ class ForgotPinScreen extends ConsumerWidget {
     await storage.deleteMasterKey();
     await storage.deletePinHash();
     await storage.deleteRecoveryKeyHash();
+    await RecoveryKeyUtil.clearPendingState(storage);
     await storage.writeMasterKey(EncryptionUtil.generateKeyBase64());
 
     if (context.mounted) {

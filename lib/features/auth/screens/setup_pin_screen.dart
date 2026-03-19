@@ -69,11 +69,22 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
     if (existingRecovery == null) {
       final key = RecoveryKeyUtil.generate();
       await storage.writeRecoveryKeyHash(RecoveryKeyUtil.hash(key));
+      await RecoveryKeyUtil.storePendingKey(storage, key);
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => RecoveryKeyScreen(recoveryKey: key),
+          builder: (_) => RecoveryKeyScreen(
+            recoveryKey: key,
+            onDone: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const EnableBiometricsScreen(),
+                ),
+              );
+            },
+          ),
         ),
       );
       return;
@@ -93,7 +104,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
     required VoidCallback onBack,
   }) {
     return SizedBox(
-      width: 60,
+      width: 56,
       child: TextField(
         controller: controller,
         focusNode: node,
@@ -141,26 +152,25 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
     List<TextEditingController> controllers,
     List<FocusNode> nodes,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 12,
+      runSpacing: 12,
       children: List.generate(pinLength, (i) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: _otpBox(
-            controller: controllers[i],
-            node: nodes[i],
-            onNext: () {
-              if (i < pinLength - 1) {
-                nodes[i + 1].requestFocus();
-              }
-            },
-            onBack: () {
-              if (i > 0) {
-                controllers[i - 1].clear();
-                nodes[i - 1].requestFocus();
-              }
-            },
-          ),
+        return _otpBox(
+          controller: controllers[i],
+          node: nodes[i],
+          onNext: () {
+            if (i < pinLength - 1) {
+              nodes[i + 1].requestFocus();
+            }
+          },
+          onBack: () {
+            if (i > 0) {
+              controllers[i - 1].clear();
+              nodes[i - 1].requestFocus();
+            }
+          },
         );
       }),
     );

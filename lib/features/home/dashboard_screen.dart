@@ -19,22 +19,23 @@ class DashboardScreen extends ConsumerWidget {
 
   const DashboardScreen({super.key, this.showAppBar = false});
 
-  Future<List<Map<String, dynamic>>> _loadRecent(WidgetRef ref) async {
+  Future<List<Map<String, dynamic>>> _loadAllItems(WidgetRef ref) async {
     final repo = ref.read(credentialRepoProvider);
-    final all = await repo.getAllDecrypted();
+    return repo.getAllDecrypted();
+  }
 
-    all.sort((a, b) {
+  List<Map<String, dynamic>> _recentItems(List<Map<String, dynamic>> all) {
+    final sorted = [...all];
+    sorted.sort((a, b) {
       final aTime = a['updatedAt'] ?? a['createdAt'];
       final bTime = b['updatedAt'] ?? b['createdAt'];
       return bTime.toString().compareTo(aTime.toString());
     });
 
-    return all.take(5).toList();
+    return sorted.take(5).toList();
   }
 
-  Future<Map<String, int>> _loadStats(WidgetRef ref) async {
-    final repo = ref.read(credentialRepoProvider);
-    final all = await repo.getAllDecrypted();
+  Map<String, int> _statsForItems(List<Map<String, dynamic>> all) {
     final total = all.length;
     final favorites = all.where((e) => e['isFavorite'] == true).length;
     final passwordItems = all
@@ -53,10 +54,11 @@ class DashboardScreen extends ConsumerWidget {
     return {'total': total, 'favorites': favorites, 'weak': weak};
   }
 
-  Future<Map<String, int>> _loadCategoryCounts(WidgetRef ref) async {
-    final repo = ref.read(credentialRepoProvider);
-    final all = await repo.getAllDecrypted();
+  Map<String, int> _categoryCountsForItems(List<Map<String, dynamic>> all) {
     final counts = <String, int>{};
+    all.sort((a, b) {
+      return 0;
+    });
     for (final item in all) {
       final raw = (item['category'] ?? '').toString().trim();
       if (raw.isEmpty) continue;
@@ -70,6 +72,7 @@ class DashboardScreen extends ConsumerWidget {
     ref.watch(vaultRefreshProvider);
     final categories = ref.watch(categoryListProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final allItemsFuture = _loadAllItems(ref);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -109,12 +112,12 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  FutureBuilder<Map<String, int>>(
-                    future: _loadStats(ref),
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: allItemsFuture,
                     builder: (context, snapshot) {
-                      final stats =
-                          snapshot.data ??
-                          {'total': 0, 'favorites': 0, 'weak': 0};
+                      final stats = snapshot.hasData
+                          ? _statsForItems(snapshot.data!)
+                          : {'total': 0, 'favorites': 0, 'weak': 0};
                       return Row(
                         children: [
                           _StatPill(
@@ -182,10 +185,12 @@ class DashboardScreen extends ConsumerWidget {
 
             _SectionHeader(title: "Categories", icon: Icons.folder_open),
             const SizedBox(height: 10),
-            FutureBuilder<Map<String, int>>(
-              future: _loadCategoryCounts(ref),
+            FutureBuilder<List<Map<String, dynamic>>>(
+              future: allItemsFuture,
               builder: (context, snapshot) {
-                final counts = snapshot.data ?? {};
+                final counts = snapshot.hasData
+                    ? _categoryCountsForItems(snapshot.data!)
+                    : <String, int>{};
                 final topCategories = [...categories]
                   ..sort((a, b) {
                     final ac = counts[a.name] ?? 0;
@@ -280,7 +285,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             FutureBuilder<List<Map<String, dynamic>>>(
-              future: _loadRecent(ref),
+              future: allItemsFuture,
               builder: (context, snapshot) {
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Padding(
@@ -289,7 +294,7 @@ class DashboardScreen extends ConsumerWidget {
                   );
                 }
 
-                final items = snapshot.data!;
+                final items = _recentItems(snapshot.data!);
                 return Column(
                   children: items
                       .map((item) => _RecentTile(item: item))

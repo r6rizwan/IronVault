@@ -37,7 +37,12 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   @override
   void initState() {
     super.initState();
-    _checkForUpdatesIfNeeded();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 1200), () {
+        if (!mounted) return;
+        _checkForUpdatesIfNeeded();
+      });
+    });
   }
 
   Future<void> _checkForUpdatesIfNeeded() async {
@@ -209,7 +214,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
             if (_updateAvailable)
               IconButton(
                 tooltip:
-                    'Update available${_updateVersion != null ? ' ($_updateVersion)' : ''}',
+                    'Update available${_updateVersion != null ? ' (${AppUpdateService.displayVersion(_updateVersion!)})' : ''}',
                 icon: const Icon(Icons.system_update_alt),
                 onPressed: () async {
                   final ctx = context;

@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/update/app_update_service.dart';
+import 'package:ironvault/core/update/update_prompt.dart';
+import 'package:ironvault/features/settings/screens/privacy_policy_screen.dart';
+import 'package:ironvault/features/settings/screens/security_tips_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -10,171 +16,335 @@ class AboutScreen extends StatefulWidget {
 }
 
 class _AboutScreenState extends State<AboutScreen> {
-  String version = "";
-  String buildNumber = "";
+  String _version = '';
+  late Future<AppUpdateInfo?> _updateFuture;
 
   @override
   void initState() {
     super.initState();
     _loadInfo();
+    _updateFuture = AppUpdateService().checkForUpdate();
   }
 
   Future<void> _loadInfo() async {
     final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() => _version = info.version);
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return const AlertDialog(
+          title: Text('Checking for updates'),
+          content: Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Text('Please wait...'),
+            ],
+          ),
+        );
+      },
+    );
+
+    final info = await AppUpdateService().checkForUpdate();
+    if (!mounted) return;
+    Navigator.pop(context);
+
     setState(() {
-      version = info.version;
-      buildNumber = info.buildNumber;
+      _updateFuture = Future.value(info);
     });
+
+    if (info == null) {
+      showDialog(
+        context: context,
+        builder: (_) {
+          return AlertDialog(
+            title: const Text('Up to date'),
+            content: const Text('You already have the latest version.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    UpdatePrompt.show(context, info);
+  }
+
+  Future<void> _reportIssue() async {
+    const url = 'https://github.com/r6rizwan/Password-Manager/issues';
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openGitHub() async {
+    const url = 'https://github.com/r6rizwan/Password-Manager';
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openProjectLicense() async {
+    const url = 'https://github.com/r6rizwan/Password-Manager/blob/main/LICENSE';
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
   Widget build(BuildContext context) {
     final textMuted = AppThemeColors.textMuted(context);
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("About")),
+      appBar: AppBar(title: const Text('About')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          Center(
+          _heroCard(context, textMuted, primary),
+          const SizedBox(height: 18),
+          _sectionCard(
+            context,
+            title: 'About the App',
             child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 36,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.12),
-                  child: Icon(
-                    Icons.lock,
-                    size: 36,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                _BulletLine(
+                  text:
+                      'Store passwords, cards, notes, bank details, and documents in one place.',
                 ),
-                const SizedBox(height: 10),
-                const Text(
-                  "IronVault",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                SizedBox(height: 8),
+                _BulletLine(
+                  text:
+                      'Unlock your vault with your PIN and use biometrics if you enable them.',
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  "Private, offline‑first vault",
-                  style: TextStyle(fontSize: 12, color: textMuted),
+                SizedBox(height: 8),
+                _BulletLine(
+                  text:
+                      'Keep important information private on your device.',
                 ),
               ],
             ),
           ),
-
-          const SizedBox(height: 24),
-
-          _sectionHeader('Build Info'),
-          _infoTile(
-            context,
-            label: "Version",
-            value: version.isEmpty ? "Loading..." : version,
-          ),
-          _infoTile(
-            context,
-            label: "Build Number",
-            value: buildNumber.isEmpty ? "Loading..." : buildNumber,
-          ),
-          _infoTile(context, label: "Developer", value: "Rizwan Mulla"),
-
-          const SizedBox(height: 8),
-          _sectionHeader('About the App'),
-
-          _section(
-            context,
-            title: 'What IronVault Is',
-            body:
-                'A private, offline‑first vault for passwords, cards, bank details, notes, and documents. Everything is stored locally and encrypted.',
-          ),
-          _section(
+          const SizedBox(height: 12),
+          _sectionCard(
             context,
             title: 'Security',
-            body:
-                'Local AES‑256 encryption (AES‑GCM), master PIN, optional biometrics, and recovery key support. No cloud sync by default.',
+            child: Column(
+              children: const [
+                _SpecRow(
+                  icon: Icons.verified_user_outlined,
+                  label: 'Encryption',
+                  value: 'AES-256-GCM',
+                  color: Color(0xFF1E88E5),
+                ),
+                SizedBox(height: 12),
+                _SpecRow(
+                  icon: Icons.password_outlined,
+                  label: 'PIN protection',
+                  value: 'PBKDF2',
+                  color: Color(0xFF43A047),
+                ),
+                SizedBox(height: 12),
+                _SpecRow(
+                  icon: Icons.phone_android_outlined,
+                  label: 'Storage',
+                  value: 'Local only',
+                  color: Color(0xFFFFA000),
+                ),
+              ],
+            ),
           ),
-          _section(
+          const SizedBox(height: 12),
+          _sectionCard(
             context,
-            title: 'Features',
-            body:
-                'Passwords, bank accounts, cards, secure notes, document scanning, categories, favorites, and password health.',
+            title: 'Privacy and Recovery',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                _BulletLine(text: 'Your data stays on your device.'),
+                SizedBox(height: 8),
+                _BulletLine(text: 'Cloud sync is not used by default.'),
+                SizedBox(height: 8),
+                _BulletLine(
+                  text:
+                      'Keep your recovery key somewhere safe. If you lose both your PIN and recovery key, your data cannot be recovered.',
+                ),
+              ],
+            ),
           ),
-          _section(
+          const SizedBox(height: 12),
+          _sectionCard(
             context,
-            title: 'Data Storage',
-            body:
-                'All vault items are stored in a local SQLite database and encrypted per item. Scanned documents are compressed to reduce size.',
-          ),
-          _section(
-            context,
-            title: 'Updates',
-            body: 'In‑app update prompts are delivered via GitHub Releases.',
-          ),
-          _section(
-            context,
-            title: 'Platforms',
-            body: 'Android (primary). iOS not yet tested.',
-          ),
-          _section(
-            context,
-            title: 'What Happens If You Forget Your PIN',
-            body:
-                'You can reset the PIN using your recovery key. If you do not have it, you can reset the vault (this deletes all data).',
+            title: 'Resources',
+            child: Column(
+              children: [
+                _actionTile(
+                  context,
+                  icon: Icons.security_outlined,
+                  title: 'Security Tips',
+                  subtitle: 'Learn how to keep your vault safer',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SecurityTipsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                FutureBuilder<AppUpdateInfo?>(
+                  future: _updateFuture,
+                  builder: (context, snapshot) {
+                    final info = snapshot.data;
+                    final status = snapshot.connectionState == ConnectionState.waiting
+                        ? _statusChip(context, 'Checking...', false)
+                        : _statusChip(
+                            context,
+                            info == null ? 'Up to date' : 'Update available',
+                            info != null,
+                          );
+
+                    return _actionTile(
+                      context,
+                      icon: Icons.system_update_alt_outlined,
+                      title: 'Check for Updates',
+                      subtitle: 'See if a newer version is available',
+                      trailing: status,
+                      onTap: _checkForUpdates,
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                _actionTile(
+                  context,
+                  icon: Icons.code_outlined,
+                  title: 'GitHub',
+                  subtitle: 'Open the project repository',
+                  onTap: _openGitHub,
+                ),
+                const SizedBox(height: 10),
+                _actionTile(
+                  context,
+                  icon: Icons.bug_report_outlined,
+                  title: 'Report an Issue',
+                  subtitle: 'Open the issue tracker in your browser',
+                  onTap: _reportIssue,
+                ),
+                const SizedBox(height: 10),
+                _actionTile(
+                  context,
+                  icon: Icons.privacy_tip_outlined,
+                  title: 'Privacy Policy',
+                  subtitle: 'See how the app handles your data',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PrivacyPolicyScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                _actionTile(
+                  context,
+                  icon: Icons.gavel_outlined,
+                  title: 'Project License',
+                  subtitle: 'View the MIT License for this app',
+                  onTap: _openProjectLicense,
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _infoTile(
-    BuildContext context, {
-    required String label,
-    required String value,
-    bool multiline = false,
-  }) {
-    final textMuted = AppThemeColors.textMuted(context);
+  Widget _heroCard(
+    BuildContext context,
+    Color textMuted,
+    Color primary,
+  ) {
     return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 14, color: textMuted)),
-          const SizedBox(height: 6),
+          CircleAvatar(
+            radius: 34,
+            backgroundColor: primary.withValues(alpha: 0.12),
+            child: Icon(Icons.shield_outlined, size: 34, color: primary),
+          ),
+          const SizedBox(height: 12),
           Text(
-            value,
-            style: const TextStyle(fontSize: 16),
-            maxLines: multiline ? null : 2,
-            overflow: multiline ? null : TextOverflow.ellipsis,
+            'IronVault',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Offline-first. Encrypted. Yours.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: textMuted),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              _version.isEmpty ? 'Version' : 'Version $_version',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: primary,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _section(
+  Widget _sectionCard(
     BuildContext context, {
     required String title,
-    required String body,
+    required Widget child,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -188,22 +358,133 @@ class _AboutScreenState extends State<AboutScreen> {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 6),
-          Text(body, style: const TextStyle(fontSize: 13, height: 1.4)),
+          const SizedBox(height: 14),
+          child,
         ],
       ),
     );
   }
 
-  Widget _sectionHeader(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10, top: 6),
+  Widget _actionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    Widget? trailing,
+  }) {
+    return Material(
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(16),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.primary.withValues(alpha: 0.12),
+          child: Icon(
+            icon,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        trailing: trailing ?? const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _statusChip(BuildContext context, String text, bool highlight) {
+    final color = highlight
+        ? Theme.of(context).colorScheme.primary
+        : AppThemeColors.textMuted(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
       ),
+    );
+  }
+}
+
+class _BulletLine extends StatelessWidget {
+  const _BulletLine({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 7),
+          child: Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(text, style: const TextStyle(fontSize: 13, height: 1.45)),
+        ),
+      ],
+    );
+  }
+}
+
+class _SpecRow extends StatelessWidget {
+  const _SpecRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final textMuted = AppThemeColors.textMuted(context);
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: color.withValues(alpha: 0.14),
+          child: Icon(icon, size: 18, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 13, color: textMuted)),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,5 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
@@ -122,6 +124,32 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
       if (acct.isEmpty) return 'Bank account';
       final last4 = acct.length >= 4 ? acct.substring(acct.length - 4) : acct;
       return 'A/C •••• $last4';
+    }
+    if (item['type'] == 'document') {
+      final documentId = (fields['document_id'] ?? '').toString().trim();
+      if (documentId.isNotEmpty) {
+        return 'ID: $documentId';
+      }
+
+      final notes = (fields['notes'] ?? '').toString().trim();
+      if (notes.isNotEmpty) {
+        return notes;
+      }
+
+      final rawScans = (fields['scans'] ?? '').toString().trim();
+      if (rawScans.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(rawScans);
+          if (decoded is List) {
+            final count = decoded.length;
+            if (count > 0) {
+              return count == 1 ? '1 scanned page' : '$count scanned pages';
+            }
+          }
+        } catch (_) {}
+      }
+
+      return 'Saved document';
     }
     for (final v in fields.values) {
       final text = v?.toString() ?? '';

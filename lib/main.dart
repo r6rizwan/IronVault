@@ -8,9 +8,11 @@ import 'core/autolock/auto_lock_provider.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/encryption_util.dart';
+import 'core/utils/recovery_key.dart';
 import 'core/providers.dart';
 import 'core/theme/app_tokens.dart';
 import 'features/auth/screens/auth_choice_screen.dart';
+import 'features/auth/screens/recovery_key_screen.dart';
 import 'features/auth/screens/setup_pin_screen.dart';
 import 'features/onboarding/screens/intro_carousel_screen.dart';
 
@@ -148,8 +150,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _bootstrap() async {
     final storage = ref.read(secureStorageProvider);
 
-    await Future.delayed(const Duration(milliseconds: 500));
-
     // Onboarding
     final onboardingDone =
         (await storage.readValue("onboarding_complete") ?? "false") == "true";
@@ -173,6 +173,29 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
       navKey.currentState?.pushReplacement(
         MaterialPageRoute(builder: (_) => const SetupMasterPinScreen()),
+      );
+      return;
+    }
+
+    final pendingRecoveryKey = await RecoveryKeyUtil.readPendingKey(storage);
+    final recoveryConfirmed = await RecoveryKeyUtil.isConfirmed(storage);
+    if (!recoveryConfirmed && pendingRecoveryKey != null) {
+      navKey.currentState?.pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => RecoveryKeyScreen(
+            recoveryKey: pendingRecoveryKey,
+            onDone: () {
+              navKey.currentState?.pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => const AuthChoiceScreen(),
+                  settings: const RouteSettings(
+                    name: AuthChoiceScreen.routeName,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       );
       return;
     }

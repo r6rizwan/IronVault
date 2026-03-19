@@ -26,6 +26,9 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
+  static const _failedPinAttemptsKey = 'failed_pin_attempts';
+  static const _pinCooldownUntilKey = 'pin_cooldown_until';
+
   final int pinLength = 4;
   final List<TextEditingController> _pinCtrls = List.generate(
     4,
@@ -37,7 +40,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final List<VoidCallback> _ctrlListeners = [];
 
   late AnimationController _shakeController;
+  Timer? _cooldownTimer;
   bool _loading = false;
+  Duration? _remainingCooldown;
 
   @override
   void initState() {
@@ -53,10 +58,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       _ctrlListeners.add(listener);
       _pinCtrls[i].addListener(listener);
     }
+
+    _loadCooldownState();
   }
 
   @override
   void dispose() {
+    _cooldownTimer?.cancel();
+
     // remove listeners
     for (var i = 0; i < _pinCtrls.length; i++) {
       if (i < _ctrlListeners.length) {
@@ -79,6 +88,89 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   String _collectPin() => _pinCtrls.map((c) => c.text).join();
+
+  bool get _isCooldownActive =>
+      _remainingCooldown != null && _remainingCooldown!.inSeconds > 0;
+
+  Future<void> _loadCooldownState() async {
+    final storage = ref.read(secureStorageProvider);
+    final rawUntil = await storage.readValue(_pinCooldownUntilKey);
+    final until = DateTime.tryParse(rawUntil ?? '');
+
+    if (until == null || !until.isAfter(DateTime.now())) {
+      await storage.deleteValue(_pinCooldownUntilKey);
+      if (!mounted) return;
+      setState(() => _remainingCooldown = null);
+      return;
+    }
+
+    _startCooldownTicker(until);
+  }
+
+  void _startCooldownTicker(DateTime until) {
+    _cooldownTimer?.cancel();
+    _updateCooldown(until);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCooldown(until);
+    });
+  }
+
+  void _updateCooldown(DateTime until) {
+    final remaining = until.difference(DateTime.now());
+    if (remaining.inSeconds <= 0) {
+      _cooldownTimer?.cancel();
+      _clearCooldownState();
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _remainingCooldown = remaining);
+  }
+
+  Future<void> _clearCooldownState() async {
+    final storage = ref.read(secureStorageProvider);
+    await storage.deleteValue(_pinCooldownUntilKey);
+    if (!mounted) return;
+    setState(() => _remainingCooldown = null);
+  }
+
+  Future<void> _resetPinAttemptState(SecureStorage storage) async {
+    await storage.deleteValue(_failedPinAttemptsKey);
+    await storage.deleteValue(_pinCooldownUntilKey);
+    _cooldownTimer?.cancel();
+    if (!mounted) return;
+    setState(() => _remainingCooldown = null);
+  }
+
+  Duration? _cooldownForFailures(int failures) {
+    if (failures >= 10) return const Duration(minutes: 15);
+    if (failures >= 8) return const Duration(minutes: 5);
+    if (failures >= 5) return const Duration(seconds: 30);
+    return null;
+  }
+
+  Future<void> _recordFailedAttempt(SecureStorage storage) async {
+    final rawCount = await storage.readValue(_failedPinAttemptsKey);
+    final failures = (int.tryParse(rawCount ?? '') ?? 0) + 1;
+    await storage.writeValue(_failedPinAttemptsKey, failures.toString());
+
+    final cooldown = _cooldownForFailures(failures);
+    if (cooldown == null) return;
+
+    final until = DateTime.now().add(cooldown);
+    await storage.writeValue(_pinCooldownUntilKey, until.toIso8601String());
+    _startCooldownTicker(until);
+  }
+
+  String _formatCooldown(Duration duration) {
+    final totalSeconds = duration.inSeconds;
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (minutes > 0) {
+      return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+    }
+    return '${seconds}s';
+  }
 
   Future<bool> _verifyPin(
     String pin,
@@ -133,6 +225,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final pin = _collectPin();
     if (pin.length < pinLength) return;
 
+    if (_isCooldownActive) {
+      if (mounted) {
+        showAppToast(
+          context,
+          'Too many attempts. Try again in ${_formatCooldown(_remainingCooldown!)}.',
+        );
+      }
+      return;
+    }
+
     if (mounted) {
       setState(() => _loading = true);
     }
@@ -150,6 +252,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     final ok = await _verifyPin(pin, savedHash, storage);
     if (ok) {
+      await _resetPinAttemptState(storage);
+
       // unlock provider first
       ref.read(autoLockProvider.notifier).unlock();
 
@@ -165,11 +269,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       );
       return;
     } else {
+      await _recordFailedAttempt(storage);
+
       // wrong PIN — animate + clear
       _playWrongPinAnimation();
 
       if (mounted) {
-        showAppToast(context, 'Invalid PIN');
+        final message = _isCooldownActive
+            ? 'Too many attempts. Try again in ${_formatCooldown(_remainingCooldown!)}.'
+            : 'Invalid PIN';
+        showAppToast(context, message);
       }
 
       _clearAll();
@@ -204,7 +313,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final filled = _pinCtrls[index].text.isNotEmpty;
 
     return SizedBox(
-      width: 64,
+      width: 56,
       child: RawKeyboardListener(
         focusNode: FocusNode(),
         onKey: (ev) {
@@ -219,6 +328,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         child: TextField(
           controller: _pinCtrls[index],
           focusNode: _pinNodes[index],
+          readOnly: _isCooldownActive,
           maxLength: 1,
           obscureText: true,
           obscuringCharacter: '•',
@@ -325,7 +435,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        "Unlock IronVault",
+                        _isCooldownActive
+                            ? "Try again in ${_formatCooldown(_remainingCooldown!)}"
+                            : "Unlock IronVault",
                         style: TextStyle(fontSize: 12, color: textMuted),
                       ),
                       const SizedBox(height: 18),
@@ -346,15 +458,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             child: child,
                           );
                         },
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 12,
+                          runSpacing: 12,
                           children: List.generate(pinLength, (i) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                              ),
-                              child: _otpBox(index: i),
-                            );
+                            return _otpBox(index: i);
                           }),
                         ),
                       ),

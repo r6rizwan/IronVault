@@ -12,20 +12,27 @@ class UpdatePrompt {
       context: context,
       barrierDismissible: true,
       builder: (_) {
+        final maxContentHeight = MediaQuery.of(context).size.height * 0.4;
         return AlertDialog(
           title: const Text('Update available'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Version ${info.latestVersion} is ready.'),
-              const SizedBox(height: 8),
-              if (info.releaseNotes.trim().isNotEmpty)
-                Text(
-                  info.releaseNotes,
-                  style: theme.textTheme.bodySmall,
-                ),
-            ],
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxContentHeight),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Version ${info.displayVersion} is ready.'),
+                  if (info.releaseNotes.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      info.releaseNotes,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(

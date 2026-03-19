@@ -1,6 +1,6 @@
-# IronVault Password Manager
+# IronVault
 
-IronVault is an offline-first password manager built with Flutter.  
+IronVault is an offline-first private vault built with Flutter.  
 It stores vault data locally on the device and protects it with strong encryption and app-level authentication.
 
 ## Project Overview
@@ -9,6 +9,7 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Encrypted storage for vault entries
 - Android document scan/import support
 - Manual and startup update checks via GitHub Releases
+- In-app privacy, update, issue-reporting, and project-license links from the About screen
 
 ## Key Features
 - Vault item types:
@@ -21,14 +22,23 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Category support
 - Password health analytics
 - Auto-lock with configurable timer and app-switch behavior
-- Recovery key flow for PIN recovery
-- Export/import flows (JSON + CSV paths in app)
+- Recovery key flow for PIN recovery with protected reveal
+- Recovery key setup that can be resumed until the user confirms it has been saved
+- Recovery key regeneration from Settings after re-authentication
+- PIN retry cooldown after repeated failed attempts
+- Encrypted backup restore plus CSV password import/export
 
 ## Security Model
 - Vault data is encrypted before storage
 - Master PIN is stored as a hash, not plain text
 - Optional biometric auth uses platform APIs
-- App uses secure window flags on Android to reduce screen capture/recents leakage
+- Recovery key is hidden by default and requires re-authentication before reveal
+- Recovery key reveal supports biometrics or PIN fallback
+- Recovery key raw value is only kept temporarily until the user confirms it has been saved
+- Repeated wrong PIN attempts trigger a persistent cooldown
+- Clipboard clearing is supported for copied sensitive fields
+- Android screenshot and recents-preview protection is enabled at the activity level
+- Screenshot/privacy behavior can still vary by platform and OEM implementation
 
 ## Ownership, License, and Brand Use
 This repository is licensed under MIT for source code reuse as defined in `LICENSE`.
@@ -42,7 +52,8 @@ Important:
 - Flutter
 - Dart
 - Riverpod
-- Drift (SQLite)
+- Drift (SQLite) for vault items
+- sqflite for category storage
 - flutter_secure_storage
 - local_auth
 - AES-based encryption utilities
@@ -75,10 +86,10 @@ Output paths:
 ## Versioning
 Version is maintained in `pubspec.yaml`:
 - `versionName` comes from `version`
-- `versionCode` comes from the build number suffix (for example `1.0.2+3`)
+- `versionCode` comes from the build number suffix
 
 Use Git tags for releases:
-- Example: `v1.0.2+3`
+- Tags follow the app version format in `pubspec.yaml`
 
 ## GitHub Releases Update Flow
 The app checks your GitHub Releases and can indicate when a newer version exists.
@@ -106,9 +117,11 @@ Never commit signing credentials or keystores:
 - `android/key.properties`
 - `*.keystore`
 - `*.jks`
-
-Use example env files for configuration:
-- `.env.example` (if needed)
+- `.env`
+- `.env.*`
+- `android/app/google-services.json`
+- `ios/Runner/GoogleService-Info.plist`
+- `android/local.properties`
 
 ## Quality Commands
 ```bash
@@ -120,7 +133,7 @@ flutter analyze
 - Some platform behaviors (recents preview/privacy handling) can vary by OEM launcher and Android version.
 - Biometric availability depends on device hardware and enrollment state.
 - Autofill service integration is currently disabled/limited by design decisions in this project stage.
+- Categories still use a separate local database path from the main vault items.
 
 ## Disclaimer
 This repository is not a Play Store submission package and does not claim Play Store policy compliance by default.
-

@@ -108,7 +108,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     required VoidCallback onBack,
   }) {
     return SizedBox(
-      width: 60,
+      width: 56,
       child: TextField(
         controller: controller,
         focusNode: node,
@@ -153,26 +153,25 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     List<TextEditingController> controllers,
     List<FocusNode> nodes,
   ) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 12,
+      runSpacing: 12,
       children: List.generate(pinLength, (i) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: _otpBox(
-            controller: controllers[i],
-            node: nodes[i],
-            onNext: () {
-              if (i < pinLength - 1) {
-                nodes[i + 1].requestFocus();
-              }
-            },
-            onBack: () {
-              if (i > 0) {
-                controllers[i - 1].clear();
-                nodes[i - 1].requestFocus();
-              }
-            },
-          ),
+        return _otpBox(
+          controller: controllers[i],
+          node: nodes[i],
+          onNext: () {
+            if (i < pinLength - 1) {
+              nodes[i + 1].requestFocus();
+            }
+          },
+          onBack: () {
+            if (i > 0) {
+              controllers[i - 1].clear();
+              nodes[i - 1].requestFocus();
+            }
+          },
         );
       }),
     );

@@ -7,11 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/theme/theme_provider.dart';
 import 'package:ironvault/core/providers.dart';
-import 'package:ironvault/features/settings/screens/advanced_settings_screen.dart';
-import 'package:ironvault/features/settings/screens/security_tips_screen.dart';
+import 'package:ironvault/features/settings/screens/about_screen.dart';
+import 'package:ironvault/features/vault/screens/password_health_screen.dart';
 import 'change_pin_screen.dart';
 import 'package:ironvault/features/auth/screens/login_screen.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:ironvault/core/utils/app_reauth_util.dart';
 import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
 import 'package:ironvault/core/backup/backup_service.dart';
@@ -606,9 +607,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _setupRecoveryKey() async {
+    final confirmed = await AppReauthUtil.confirmIdentity(
+      context,
+      ref,
+      reason: 'Confirm your identity to manage the recovery key',
+    );
+    if (!confirmed || !mounted) return;
+
     final storage = ref.read(secureStorageProvider);
     final key = RecoveryKeyUtil.generate();
     await storage.writeRecoveryKeyHash(RecoveryKeyUtil.hash(key));
+    await RecoveryKeyUtil.storePendingKey(storage, key);
     if (!mounted) return;
 
     await Navigator.push(
@@ -641,14 +650,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           _sectionTitle("Security"),
 
-          if (!_hasRecoveryKey)
-            _settingsTile(
-              context,
-              icon: Icons.vpn_key_outlined,
-              title: "Set up Recovery Key",
-              onTap: _setupRecoveryKey,
-              trailing: const Icon(Icons.chevron_right),
-            ),
+          _settingsTile(
+            context,
+            icon: Icons.vpn_key_outlined,
+            title: _hasRecoveryKey
+                ? "Generate New Recovery Key"
+                : "Set up Recovery Key",
+            subtitle: _hasRecoveryKey
+                ? "Replace your current recovery key"
+                : null,
+            onTap: _setupRecoveryKey,
+            trailing: const Icon(Icons.chevron_right),
+          ),
 
           _settingsTile(
             context,
@@ -714,14 +727,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           _settingsTile(
             context,
-            icon: Icons.tune,
-            title: "Advanced",
+            icon: Icons.health_and_safety,
+            title: "Password Health",
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const AdvancedSettingsScreen(),
+                  builder: (_) => const PasswordHealthScreen(),
                 ),
+              );
+            },
+          ),
+          _settingsTile(
+            context,
+            icon: Icons.info_outline,
+            title: "About",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AboutScreen()),
               );
             },
           ),
@@ -808,7 +832,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const SecurityTipsScreen()),
+                MaterialPageRoute(builder: (_) => const AboutScreen()),
               );
             },
             child: Container(
@@ -847,6 +871,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     BuildContext context, {
     required IconData icon,
     required String title,
+    String? subtitle,
     VoidCallback? onTap,
     Widget? trailing,
   }) {
@@ -876,6 +901,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         title: Text(title),
+        subtitle: subtitle == null ? null : Text(subtitle),
         trailing: trailing ?? const Icon(Icons.chevron_right),
         onTap: onTap,
       ),

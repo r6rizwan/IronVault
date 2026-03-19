@@ -3,10 +3,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/core/providers.dart';
+import 'package:ironvault/core/utils/app_reauth_util.dart';
+import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:ironvault/features/vault/screens/enable_biometrics_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
-import 'package:local_auth/local_auth.dart';
 
 class RecoveryKeyScreen extends ConsumerStatefulWidget {
   final String recoveryKey;
@@ -26,8 +28,8 @@ class RecoveryKeyScreen extends ConsumerStatefulWidget {
 
 class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
   late final AutoLockController _autoLock;
-  final LocalAuthentication _auth = LocalAuthentication();
   bool _isRevealed = false;
+  bool _confirming = false;
 
   @override
   void initState() {
@@ -52,19 +54,43 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
       return;
     }
 
-    try {
-      // TODO: Add FLAG_SECURE via flutter_windowmanager to block screenshots
-      final didAuthenticate = await _auth.authenticate(
-        localizedReason: 'Re-authenticate to reveal your recovery key',
-        biometricOnly: true,
-      );
+    final didAuthenticate = await AppReauthUtil.confirmIdentity(
+      context,
+      ref,
+      reason: 'Re-authenticate to reveal your recovery key',
+    );
 
-      if (!mounted || !didAuthenticate) return;
-      setState(() => _isRevealed = true);
-    } catch (_) {
-      if (!mounted) return;
-      showAppToast(context, 'Biometric verification failed');
+    if (!mounted || !didAuthenticate) {
+      if (mounted) {
+        showAppToast(context, 'Verification required to reveal the key');
+      }
+      return;
     }
+
+    setState(() => _isRevealed = true);
+  }
+
+  Future<void> _confirmSaved() async {
+    if (_confirming) return;
+    setState(() => _confirming = true);
+
+    final storage = ref.read(secureStorageProvider);
+    await RecoveryKeyUtil.markConfirmed(storage);
+
+    if (!mounted) return;
+    setState(() => _confirming = false);
+
+    if (widget.onDone != null) {
+      widget.onDone!();
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const EnableBiometricsScreen(),
+      ),
+    );
   }
 
   @override
@@ -162,19 +188,14 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  if (widget.onDone != null) {
-                    widget.onDone!();
-                    return;
-                  }
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const EnableBiometricsScreen(),
-                    ),
-                  );
-                },
-                child: Text(widget.doneLabel),
+                onPressed: _confirming ? null : _confirmSaved,
+                child: _confirming
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(widget.doneLabel),
               ),
             ),
           ],
