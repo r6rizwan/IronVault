@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/theme/theme_provider.dart';
 import 'package:ironvault/core/providers.dart';
+import 'package:ironvault/core/services/crash_reporter.dart';
 import 'package:ironvault/features/settings/screens/about_screen.dart';
 import 'package:ironvault/features/vault/screens/password_health_screen.dart';
 import 'change_pin_screen.dart';
@@ -231,6 +232,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
       ref.read(autoLockProvider.notifier).resumeAutoLock();
     } catch (e) {
+      await CrashReporter.captureException(
+        e,
+        StackTrace.current,
+        feature: 'backup',
+        action: 'export_encrypted_backup',
+      );
       ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (!ctx.mounted) return;
       Navigator.pop(ctx);
@@ -356,6 +363,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
       ref.read(autoLockProvider.notifier).resumeAutoLock();
     } catch (e) {
+      await CrashReporter.captureException(
+        e,
+        StackTrace.current,
+        feature: 'backup',
+        action: 'import_encrypted_backup',
+      );
       ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (!ctx.mounted) return;
       Navigator.pop(ctx);
@@ -429,6 +442,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
       ref.read(autoLockProvider.notifier).resumeAutoLock();
     } catch (e) {
+      await CrashReporter.captureException(
+        e,
+        StackTrace.current,
+        feature: 'import_export',
+        action: 'import_csv',
+      );
       ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (!ctx.mounted) return;
       Navigator.pop(ctx);
@@ -503,6 +522,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
       ref.read(autoLockProvider.notifier).resumeAutoLock();
     } catch (e) {
+      await CrashReporter.captureException(
+        e,
+        StackTrace.current,
+        feature: 'import_export',
+        action: 'export_csv',
+      );
       ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (!ctx.mounted) return;
       Navigator.pop(ctx);

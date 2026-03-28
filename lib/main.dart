@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/navigation/global_nav.dart';
+import 'package:ironvault/core/services/crash_reporter.dart';
 import 'core/autolock/auto_lock_provider.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/theme/app_theme.dart';
@@ -16,9 +17,11 @@ import 'features/auth/screens/recovery_key_screen.dart';
 import 'features/auth/screens/setup_pin_screen.dart';
 import 'features/onboarding/screens/intro_carousel_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: MyApp()));
+  await CrashReporter.init(() async {
+    runApp(const ProviderScope(child: MyApp()));
+  });
 }
 
 class MyApp extends ConsumerStatefulWidget {

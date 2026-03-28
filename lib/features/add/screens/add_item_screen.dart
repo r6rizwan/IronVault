@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/constants/item_types.dart';
 import 'package:ironvault/core/providers.dart';
+import 'package:ironvault/core/services/crash_reporter.dart';
 import 'package:ironvault/core/widgets/common_text_field.dart';
 import 'package:ironvault/features/categories/providers/category_provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -27,12 +29,15 @@ class AddItemScreen extends ConsumerStatefulWidget {
 }
 
 class _AddItemScreenState extends ConsumerState<AddItemScreen> {
+  static const _draftStorageKey = 'add_item_draft_v1';
+
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _titleKey = GlobalKey();
   final GlobalKey _docErrorKey = GlobalKey();
   final Map<String, GlobalKey> _fieldKeys = {};
+  final Set<String> _attachedDraftListeners = {};
 
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, bool> _obscure = {};
@@ -44,6 +49,8 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   bool _saving = false;
   String? _titleError;
   String? _documentError;
+  Timer? _draftSaveDebounce;
+  bool _restoringDraft = false;
 
   @override
   void initState() {
@@ -54,11 +61,15 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     }
 
     _titleController.text = widget.existingItem?['title'] ?? '';
+    _titleController.addListener(_scheduleDraftSave);
     _initControllersForType(_typeKey);
+    _restoreDraftIfNeeded();
   }
 
   @override
   void dispose() {
+    _draftSaveDebounce?.cancel();
+    _titleController.removeListener(_scheduleDraftSave);
     _titleController.dispose();
     _scrollController.dispose();
     for (final c in _controllers.values) {
@@ -92,6 +103,9 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
           text: existingFields?[field.key]?.toString() ?? '',
         ),
       );
+      if (_attachedDraftListeners.add(field.key)) {
+        _controllers[field.key]!.addListener(_scheduleDraftSave);
+      }
       if (field.obscure) {
         _obscure[field.key] = true;
       }
@@ -110,6 +124,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       _titleError = null;
       _documentError = null;
     });
+    _scheduleDraftSave();
   }
 
   Map<String, String> _collectFields() {
@@ -177,6 +192,158 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     return ok;
   }
 
+  Future<void> _restoreDraftIfNeeded() async {
+    if (widget.existingItem != null) return;
+
+    final storage = ref.read(secureStorageProvider);
+    final raw = await storage.readValue(_draftStorageKey);
+    if (raw == null || raw.isEmpty || !mounted) return;
+
+    Map<String, dynamic> draft;
+    try {
+      draft = (jsonDecode(raw) as Map).cast<String, dynamic>();
+    } catch (_) {
+      await storage.deleteValue(_draftStorageKey);
+      return;
+    }
+
+    _restoringDraft = true;
+
+    final draftType = (draft['typeKey'] ?? '').toString().trim();
+    final fields = (draft['fields'] as Map?)?.cast<String, dynamic>() ?? {};
+    final scans = (draft['scanPaths'] as List?)?.map((e) => e.toString()).toList();
+    final category = draft['selectedCategory']?.toString();
+
+    if (draftType.isNotEmpty && draftType != _typeKey) {
+      _typeKey = draftType;
+      _initControllersForType(_typeKey);
+    }
+
+    _titleController.text = (draft['title'] ?? '').toString();
+    if (_typeKey == 'password') {
+      _selectedCategory = category?.isEmpty == true ? null : category;
+    } else {
+      _selectedCategory = null;
+    }
+
+    for (final entry in fields.entries) {
+      final controller = _controllers[entry.key];
+      if (controller != null) {
+        controller.text = entry.value?.toString() ?? '';
+      }
+    }
+
+    _scanPaths
+      ..clear()
+      ..addAll(scans ?? const []);
+
+    _restoringDraft = false;
+    if (!mounted) return;
+    setState(() {});
+    showAppToast(context, 'Restored your unsaved draft');
+  }
+
+  void _scheduleDraftSave() {
+    if (_restoringDraft || widget.existingItem != null) return;
+    _draftSaveDebounce?.cancel();
+    _draftSaveDebounce = Timer(
+      const Duration(milliseconds: 400),
+      _persistDraft,
+    );
+  }
+
+  Future<void> _persistDraft() async {
+    if (!mounted || _restoringDraft || widget.existingItem != null) return;
+
+    final hasContent =
+        _titleController.text.trim().isNotEmpty ||
+        _selectedCategory != null ||
+        _scanPaths.isNotEmpty ||
+        _controllers.values.any((c) => c.text.trim().isNotEmpty);
+
+    final storage = ref.read(secureStorageProvider);
+    if (!hasContent) {
+      await storage.deleteValue(_draftStorageKey);
+      return;
+    }
+
+    final draft = <String, dynamic>{
+      'typeKey': _typeKey,
+      'title': _titleController.text.trim(),
+      'selectedCategory': _selectedCategory,
+      'fields': _collectFields(),
+      'scanPaths': List<String>.from(_scanPaths),
+    };
+
+    await storage.writeValue(_draftStorageKey, jsonEncode(draft));
+  }
+
+  Future<void> _clearDraft() async {
+    _draftSaveDebounce?.cancel();
+    await ref.read(secureStorageProvider).deleteValue(_draftStorageKey);
+  }
+
+  bool get _hasUnsavedDraftContent {
+    if (widget.existingItem != null) return false;
+    return _titleController.text.trim().isNotEmpty ||
+        _selectedCategory != null ||
+        _scanPaths.isNotEmpty ||
+        _controllers.values.any((c) => c.text.trim().isNotEmpty);
+  }
+
+  Future<void> _exitAddItemScreen({required bool discardDraft}) async {
+    if (discardDraft) {
+      await _clearDraft();
+    } else {
+      await _persistDraft();
+    }
+    if (!mounted) return;
+    Navigator.pop(context, false);
+  }
+
+  Future<void> _handleBackNavigation() async {
+    if (!_hasUnsavedDraftContent) {
+      if (!mounted) return;
+      Navigator.pop(context, false);
+      return;
+    }
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          title: const Text('Unsaved item'),
+          content: const Text(
+            'You have an item in progress. Do you want to keep this draft for later or discard it?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'cancel'),
+              child: const Text('Stay'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'discard'),
+              child: const Text('Discard'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, 'keep'),
+              child: const Text('Keep Draft'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (choice == 'discard') {
+      await _exitAddItemScreen(discardDraft: true);
+      return;
+    }
+
+    if (choice == 'keep') {
+      await _exitAddItemScreen(discardDraft: false);
+    }
+  }
+
   bool _isValidExpiry(String value) {
     final m = RegExp(r'^(\d{2})\/(\d{2}|\d{4})$').firstMatch(value);
     if (m == null) return false;
@@ -230,6 +397,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     }
 
     if (mounted) setState(() {});
+    _scheduleDraftSave();
   }
 
   Future<void> _pickFromGallery() async {
@@ -254,6 +422,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     }
 
     if (mounted) setState(() {});
+    _scheduleDraftSave();
   }
 
   Future<void> _pickFromFiles() async {
@@ -283,6 +452,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     }
 
     if (mounted) setState(() {});
+    _scheduleDraftSave();
   }
 
   Future<String?> _compressAndMove(String inputPath, String dirPath) async {
@@ -342,11 +512,19 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         );
       }
 
+      await _clearDraft();
       TextInput.finishAutofillContext(shouldSave: true);
       if (!mounted || !ctx.mounted) return;
       Navigator.pop(ctx, true);
       ref.read(vaultRefreshProvider.notifier).state++;
     } catch (e) {
+      await CrashReporter.captureException(
+        e,
+        StackTrace.current,
+        feature: 'add_item',
+        action: widget.existingItem == null ? 'create_item' : 'update_item',
+        extras: {'type': _typeKey},
+      );
       if (!mounted || !ctx.mounted) return;
       showAppToast(ctx, 'Failed to save: $e');
     } finally {
@@ -451,13 +629,14 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                 label: const Text('Add Pages'),
               ),
               const SizedBox(width: 10),
-              if (_scanPaths.isNotEmpty)
-                TextButton(
-                  onPressed: () {
-                    setState(() => _scanPaths.clear());
-                  },
-                  child: const Text('Clear'),
-                ),
+      if (_scanPaths.isNotEmpty)
+        TextButton(
+          onPressed: () {
+            setState(() => _scanPaths.clear());
+            _scheduleDraftSave();
+          },
+          child: const Text('Clear'),
+        ),
             ],
           ),
         ],
@@ -565,6 +744,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   setState(() => _selectedCategory = null);
+                  _scheduleDraftSave();
                 },
               ),
               ...categories.map(
@@ -579,6 +759,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     setState(() => _selectedCategory = c.name);
+                    _scheduleDraftSave();
                   },
                 ),
               ),
@@ -791,6 +972,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                         final item = _scanPaths.removeAt(oldIndex);
                         _scanPaths.insert(newIndex, item);
                       });
+                      _scheduleDraftSave();
                     },
                     itemBuilder: (context, index) {
                       final path = _scanPaths[index];
@@ -812,6 +994,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                           icon: const Icon(Icons.delete_outline),
                           onPressed: () {
                             setState(() => _scanPaths.removeAt(index));
+                            _scheduleDraftSave();
                           },
                         ),
                       );
@@ -862,13 +1045,13 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        Navigator.pop(context, false);
+        _handleBackNavigation();
       },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: _handleBackNavigation,
           ),
           title: Text(widget.existingItem == null ? 'Add Item' : 'Edit Item'),
         ),

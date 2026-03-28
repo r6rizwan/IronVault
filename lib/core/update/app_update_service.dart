@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:ironvault/core/services/crash_reporter.dart';
 
 class AppUpdateInfo {
   final String latestVersion;
@@ -27,38 +28,55 @@ class AppUpdateService {
   }
 
   Future<AppUpdateInfo?> checkForUpdate() async {
-    final info = await PackageInfo.fromPlatform();
-    final current = _currentInstalledVersion(info);
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final current = _currentInstalledVersion(info);
 
-    final res = await http.get(Uri.parse('$apiBase/releases/latest'));
-    if (res.statusCode != 200) return null;
-
-    final json = jsonDecode(res.body) as Map<String, dynamic>;
-    final tag = (json['tag_name'] ?? '').toString().replaceFirst('v', '');
-    final notes = (json['body'] ?? '').toString();
-    final assets = (json['assets'] as List<dynamic>? ?? []);
-
-    // Find the first APK asset
-    String? apkUrl;
-    for (final a in assets) {
-      final name = (a['name'] ?? '').toString().toLowerCase();
-      if (name.endsWith('.apk')) {
-        apkUrl = (a['browser_download_url'] ?? '').toString();
-        break;
+      final res = await http.get(Uri.parse('$apiBase/releases/latest'));
+      if (res.statusCode != 200) {
+        await CrashReporter.captureMessage(
+          'Update check returned non-200 status',
+          feature: 'updates',
+          action: 'check_for_update',
+          extras: {'status_code': res.statusCode},
+        );
+        return null;
       }
-    }
 
-    if (apkUrl == null || tag.isEmpty) return null;
+      final json = jsonDecode(res.body) as Map<String, dynamic>;
+      final tag = (json['tag_name'] ?? '').toString().replaceFirst('v', '');
+      final notes = (json['body'] ?? '').toString();
+      final assets = (json['assets'] as List<dynamic>? ?? []);
 
-    if (_isNewerVersion(tag, current)) {
-      return AppUpdateInfo(
-        latestVersion: tag,
-        apkUrl: apkUrl,
-        releaseNotes: notes,
+      String? apkUrl;
+      for (final a in assets) {
+        final name = (a['name'] ?? '').toString().toLowerCase();
+        if (name.endsWith('.apk')) {
+          apkUrl = (a['browser_download_url'] ?? '').toString();
+          break;
+        }
+      }
+
+      if (apkUrl == null || tag.isEmpty) return null;
+
+      if (_isNewerVersion(tag, current)) {
+        return AppUpdateInfo(
+          latestVersion: tag,
+          apkUrl: apkUrl,
+          releaseNotes: notes,
+        );
+      }
+
+      return null;
+    } catch (error, stackTrace) {
+      await CrashReporter.captureException(
+        error,
+        stackTrace,
+        feature: 'updates',
+        action: 'check_for_update',
       );
+      return null;
     }
-
-    return null;
   }
 
   String _currentInstalledVersion(PackageInfo info) {
