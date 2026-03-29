@@ -19,31 +19,28 @@ class _IntroCarouselScreenState extends ConsumerState<IntroCarouselScreen> {
 
   final List<_IntroSlide> slides = const [
     _IntroSlide(
-      title: "Secure by Design",
+      title: "Private by Default",
       description:
-          "Everything is encrypted locally with AES‑256 on your device.",
+          "Your data stays on your device, and IronVault does not rely on cloud sync by default.",
       icon: Icons.verified_user_outlined,
     ),
     _IntroSlide(
-      title: "Unlock Your Way",
-      description: "Use PIN or biometrics for quick, private access.",
+      title: "Store Important Information",
+      description:
+          "Save passwords, notes, cards, bank details, and documents in one secure place.",
+      icon: Icons.inventory_2_outlined,
+    ),
+    _IntroSlide(
+      title: "Unlock Securely",
+      description:
+          "Use your master PIN to unlock the app, and enable biometrics for faster access if you want.",
       icon: Icons.lock_outline,
     ),
     _IntroSlide(
-      title: "Recovery Ready",
+      title: "Recovery Matters",
       description:
-          "Create a recovery key to reset your PIN without losing data.",
+          "Save your recovery key somewhere safe. If you lose both your PIN and recovery key, your data cannot be recovered.",
       icon: Icons.vpn_key_outlined,
-    ),
-    _IntroSlide(
-      title: "Scan & Store",
-      description: "Scan documents and keep them safe in your vault.",
-      icon: Icons.document_scanner_outlined,
-    ),
-    _IntroSlide(
-      title: "Stay Updated",
-      description: "Get update prompts from GitHub Releases.",
-      icon: Icons.system_update_alt,
     ),
   ];
 

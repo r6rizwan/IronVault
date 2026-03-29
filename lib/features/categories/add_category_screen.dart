@@ -2,12 +2,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/features/categories/providers/category_provider.dart';
 import '../../../core/constants/category_presets.dart';
 import '../../../domain/entities/vault_category.dart';
 
 class AddCategoryScreen extends ConsumerStatefulWidget {
-  const AddCategoryScreen({super.key});
+  final VaultCategory? category;
+
+  const AddCategoryScreen({super.key, this.category});
 
   @override
   ConsumerState<AddCategoryScreen> createState() => _AddCategoryScreenState();
@@ -19,19 +22,88 @@ class _AddCategoryScreenState extends ConsumerState<AddCategoryScreen> {
   Color _selectedColor = presetColors.first;
   bool _saving = false;
 
+  bool get _isEditing => widget.category != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.category;
+    if (existing == null) return;
+    _nameCtrl.text = existing.name;
+    _selectedIcon = existing.iconKey;
+    _selectedColor = existing.color;
+  }
+
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
 
+    if (_isEditing) {
+      final existing = widget.category!;
+      final repo = ref.read(credentialRepoProvider);
+      final items = await repo.getAllDecrypted();
+      final usedCount = items
+          .where(
+            (e) =>
+                (e['category'] ?? '').toString().toLowerCase() ==
+                existing.name.toLowerCase(),
+          )
+          .length;
+
+      if (!mounted) return;
+      final nameChanged = existing.name.toLowerCase() != name.toLowerCase();
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Update Category'),
+          content: Text(
+            nameChanged && usedCount > 0
+                ? 'This category is used by $usedCount item(s). Renaming it will update those items to use "$name" instead.'
+                : nameChanged
+                ? 'Rename this category to "$name"?'
+                : usedCount > 0
+                ? 'This category is used by $usedCount item(s). Update this category?'
+                : 'Update this category?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Update'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+    }
+
     setState(() => _saving = true);
 
-    final category = VaultCategory(
-      name: name,
-      iconKey: _selectedIcon,
-      colorValue: _selectedColor.value,
-    );
-
-    await ref.read(categoryListProvider.notifier).addCategory(category);
+    if (_isEditing) {
+      final existing = widget.category!;
+      final updated = existing.copyWith(
+        name: name,
+        iconKey: _selectedIcon,
+        colorValue: _selectedColor.value,
+      );
+      await ref.read(categoryListProvider.notifier).updateCategory(updated);
+      if (existing.name.toLowerCase() != name.toLowerCase()) {
+        final repo = ref.read(credentialRepoProvider);
+        await repo.renameCategoryReferences(existing.name, name);
+        ref.read(vaultRefreshProvider.notifier).state++;
+      }
+    } else {
+      final category = VaultCategory(
+        name: name,
+        iconKey: _selectedIcon,
+        colorValue: _selectedColor.value,
+      );
+      await ref.read(categoryListProvider.notifier).addCategory(category);
+    }
 
     if (!mounted) return;
     Navigator.pop(context);
@@ -48,7 +120,7 @@ class _AddCategoryScreenState extends ConsumerState<AddCategoryScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textMuted = Theme.of(context).textTheme.bodySmall?.color;
     return Scaffold(
-      appBar: AppBar(title: const Text("Add Category")),
+      appBar: AppBar(title: Text(_isEditing ? "Edit Category" : "Add Category")),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
@@ -172,7 +244,7 @@ class _AddCategoryScreenState extends ConsumerState<AddCategoryScreen> {
               onPressed: _saving ? null : _save,
               child: _saving
                   ? const CircularProgressIndicator()
-                  : const Text("Save Category"),
+                  : Text(_isEditing ? "Update Category" : "Save Category"),
             ),
           ),
         ],

@@ -55,11 +55,15 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
       if (!_biometricEnabled || !_biometricAvailable) return;
 
       autoLock.suspendAutoLock();
-      final ok = await _auth.authenticate(
-        localizedReason: "Unlock IronVault",
-        biometricOnly: true,
-      );
-      autoLock.resumeAutoLock();
+      bool ok;
+      try {
+        ok = await _auth.authenticate(
+          localizedReason: "Unlock IronVault",
+          biometricOnly: true,
+        );
+      } finally {
+        autoLock.resumeAutoLock();
+      }
 
       if (!ok) {
         // User canceled or failed; don't show an error here.
@@ -86,8 +90,6 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
       }
     } catch (_) {
       // Swallow generic errors to avoid noisy UX on cancel.
-    } finally {
-      autoLock.resumeAutoLock();
     }
   }
 

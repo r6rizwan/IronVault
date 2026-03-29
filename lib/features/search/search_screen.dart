@@ -108,7 +108,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 120),
           children: [
             const SizedBox(height: 6),
 
@@ -181,10 +181,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             const SizedBox(height: 12),
 
             if (_loading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(child: CircularProgressIndicator()),
-              )
+              const _SearchLoadingState()
             else if (_query.isEmpty)
               _buildEmptyState()
             else
@@ -198,8 +195,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildEmptyState() {
     return const EmptyState(
       icon: Icons.search,
-      title: "Start typing to search your vault",
-      subtitle: "Results will appear instantly",
+      title: "Search your vault",
+      subtitle: "Type a name, username, note, or document detail to begin.",
     );
   }
 
@@ -209,7 +206,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return const EmptyState(
         icon: Icons.search_off,
         title: "No results found",
-        subtitle: "Try another keyword",
+        subtitle: "Try a different keyword or clear your filters.",
       );
     }
 
@@ -354,6 +351,79 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _SearchLoadingState extends StatelessWidget {
+  const _SearchLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      itemCount: 5,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemBuilder: (_, __) => const _SearchResultSkeleton(),
+    );
+  }
+}
+
+class _SearchResultSkeleton extends StatelessWidget {
+  const _SearchResultSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fill = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.06);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(22),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Container(
+              height: 16,
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

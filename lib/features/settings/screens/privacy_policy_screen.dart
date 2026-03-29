@@ -13,7 +13,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           _PolicySection(
             title: 'Overview',
             body:
-                'IronVault is designed to store your vault data on your device. The app does not use cloud sync by default.',
+                'IronVault is designed to store your vault data on your device. The app does not use cloud sync.',
           ),
           _PolicySection(
             title: 'What the App Stores',

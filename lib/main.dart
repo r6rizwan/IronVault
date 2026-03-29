@@ -32,29 +32,16 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
-  static const MethodChannel _lifecycleChannel =
-      MethodChannel('ironvault/lifecycle');
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _lifecycleChannel.setMethodCallHandler(_handleNativeLifecycleCall);
   }
 
   @override
   void dispose() {
-    _lifecycleChannel.setMethodCallHandler(null);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-
-  Future<void> _handleNativeLifecycleCall(MethodCall call) async {
-    if (call.method == 'userLeaveHint' ||
-        call.method == 'appPaused' ||
-        call.method == 'appBackgrounded') {
-      ref.read(autoLockProvider.notifier).markPaused(forceImmediate: true);
-    }
   }
 
   bool _isAuthChoiceVisible() {
@@ -72,17 +59,16 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
 
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
-      // App moved to background (full pause) --> lock immediately on resume
-      autoLock.markPaused(forceImmediate: true);
+      // App moved to background (full pause) -> start background timing.
+      autoLock.markPaused();
     }
 
     if (state == AppLifecycleState.resumed) {
       Future.microtask(() async {
+        final locked = await autoLock.evaluateLockOnResume();
         // Clear any stale suspension (e.g. interrupted external flow),
         // but keep pause timestamps so real background transitions can lock.
         autoLock.resumeAutoLock(clearPauseState: false);
-        await autoLock.evaluateLockOnResume();
-        final locked = ref.read(autoLockProvider);
 
         if (locked) {
           if (_isAuthChoiceVisible()) return;

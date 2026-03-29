@@ -17,6 +17,7 @@ class AppReauthUtil {
     required String reason,
   }) async {
     final auth = LocalAuthentication();
+    var shouldFallbackToPin = true;
 
     try {
       final canCheck = await auth.canCheckBiometrics;
@@ -29,11 +30,20 @@ class AppReauthUtil {
             biometricOnly: true,
           );
           if (ok) return true;
+          return false;
         }
+      }
+    } on PlatformException catch (error) {
+      final code = error.code.toLowerCase();
+      if (code == 'canceled' ||
+          code == 'cancelled' ||
+          code == 'user_canceled' ||
+          code == 'system_canceled') {
+        shouldFallbackToPin = false;
       }
     } catch (_) {}
 
-    if (!context.mounted) return false;
+    if (!context.mounted || !shouldFallbackToPin) return false;
     return _promptForPin(context, ref);
   }
 

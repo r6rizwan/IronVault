@@ -3,8 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ironvault/core/navigation/global_nav.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/utils/pin_kdf.dart';
+import 'package:ironvault/core/utils/encryption_util.dart';
 import 'package:ironvault/features/vault/screens/enable_biometrics_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/utils/recovery_key.dart';
@@ -61,6 +63,10 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
     setState(() => _loading = true);
 
     final storage = ref.read(secureStorageProvider);
+    final masterKey = await storage.readMasterKey();
+    if (masterKey == null) {
+      await storage.writeMasterKey(EncryptionUtil.generateKeyBase64());
+    }
     await storage.writePinHash(PinKdf.hashPin(pin));
 
     setState(() => _loading = false);
@@ -77,8 +83,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
           builder: (_) => RecoveryKeyScreen(
             recoveryKey: key,
             onDone: () {
-              Navigator.pushReplacement(
-                context,
+              navKey.currentState?.pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => const EnableBiometricsScreen(),
                 ),

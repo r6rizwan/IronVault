@@ -6,6 +6,7 @@ import 'package:ironvault/core/update/update_prompt.dart';
 import 'package:ironvault/features/settings/screens/privacy_policy_screen.dart';
 import 'package:ironvault/features/settings/screens/security_tips_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AboutScreen extends StatefulWidget {
@@ -87,21 +88,30 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Future<void> _reportIssue() async {
-    const url = 'https://github.com/r6rizwan/Password-Manager/issues';
+    const url = 'https://github.com/r6rizwan/IronVault/issues';
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _openGitHub() async {
-    const url = 'https://github.com/r6rizwan/Password-Manager';
+    const url = 'https://github.com/r6rizwan/IronVault';
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _openProjectLicense() async {
-    const url = 'https://github.com/r6rizwan/Password-Manager/blob/main/LICENSE';
+    const url = 'https://github.com/r6rizwan/IronVault/blob/main/LICENSE';
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _shareApp() async {
+    await SharePlus.instance.share(
+      ShareParams(
+        text:
+            'Try IronVault, a private offline vault for Android: https://github.com/r6rizwan/IronVault/releases/latest',
+      ),
+    );
   }
 
   @override
@@ -177,7 +187,7 @@ class _AboutScreenState extends State<AboutScreen> {
               children: const [
                 _BulletLine(text: 'Your data stays on your device.'),
                 SizedBox(height: 8),
-                _BulletLine(text: 'Cloud sync is not used by default.'),
+                _BulletLine(text: 'IronVault does not use cloud sync.'),
                 SizedBox(height: 8),
                 _BulletLine(
                   text:
@@ -224,10 +234,18 @@ class _AboutScreenState extends State<AboutScreen> {
                       icon: Icons.system_update_alt_outlined,
                       title: 'Check for Updates',
                       subtitle: 'See if a newer version is available',
-                      trailing: status,
+                      status: status,
                       onTap: _checkForUpdates,
                     );
                   },
+                ),
+                const SizedBox(height: 10),
+                _actionTile(
+                  context,
+                  icon: Icons.share_outlined,
+                  title: 'Share App',
+                  subtitle: 'Send the app link to someone else',
+                  onTap: _shareApp,
                 ),
                 const SizedBox(height: 10),
                 _actionTile(
@@ -373,28 +391,59 @@ class _AboutScreenState extends State<AboutScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    Widget? trailing,
+    Widget? status,
   }) {
     return Material(
       color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.06),
       borderRadius: BorderRadius.circular(16),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: CircleAvatar(
-          radius: 18,
-          backgroundColor: Theme.of(
-            context,
-          ).colorScheme.primary.withValues(alpha: 0.12),
-          child: Icon(
-            icon,
-            size: 18,
-            color: Theme.of(context).colorScheme.primary,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.12),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(subtitle),
+                    if (status != null) ...[
+                      const SizedBox(height: 10),
+                      status,
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Icon(
+                  Icons.chevron_right,
+                  color: AppThemeColors.textMuted(context),
+                ),
+              ),
+            ],
           ),
         ),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        trailing: trailing ?? const Icon(Icons.chevron_right),
-        onTap: onTap,
       ),
     );
   }

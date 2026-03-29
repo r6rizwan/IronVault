@@ -36,6 +36,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _lockOnSwitch = true;
   bool _hasRecoveryKey = true;
   bool _clipboardDisabled = false;
+  String _autoLockTimer = "immediately";
   late final String _securityTip;
 
   static const List<String> _securityTips = [
@@ -61,6 +62,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         (await storage.readValue("biometrics_enabled") ?? "false") == "true";
     _lockOnSwitch =
         (await storage.readValue("auto_lock_on_switch") ?? "true") == "true";
+    _autoLockTimer =
+        await storage.readValue("auto_lock_timer") ?? "immediately";
     _clipboardDisabled =
         (await storage.readValue("disable_clipboard_copy") ?? "false") ==
         "true";
@@ -140,7 +143,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setLocal) => AlertDialog(
-            title: const Text('Export Encrypted Backup'),
+            title: const Text('Create Encrypted Backup'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -162,7 +165,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Keep this password safe. You will need it to restore.',
+                  'Keep this password safe. You will need it to restore this backup later.',
                   style: TextStyle(fontSize: 12),
                 ),
               ],
@@ -218,19 +221,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     try {
       ref.read(autoLockProvider.notifier).suspendAutoLock();
-      final service = BackupService(repo: ref.read(credentialRepoProvider));
-      final file = await service.exportEncryptedBackup(
-        password: passCtrl.text.trim(),
-      );
-      if (!ctx.mounted) return;
-      Navigator.pop(ctx);
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          text: 'IronVault encrypted backup',
-        ),
-      );
-      ref.read(autoLockProvider.notifier).resumeAutoLock();
+      try {
+        final service = BackupService(repo: ref.read(credentialRepoProvider));
+        final file = await service.exportEncryptedBackup(
+          password: passCtrl.text.trim(),
+        );
+        if (!ctx.mounted) return;
+        Navigator.pop(ctx);
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path)],
+            text: 'IronVault encrypted backup',
+          ),
+        );
+      } finally {
+        ref.read(autoLockProvider.notifier).resumeAutoLock();
+      }
     } catch (e) {
       await CrashReporter.captureException(
         e,
@@ -238,7 +244,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         feature: 'backup',
         action: 'export_encrypted_backup',
       );
-      ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (!ctx.mounted) return;
       Navigator.pop(ctx);
       showDialog(
@@ -275,7 +280,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (_) {
         return StatefulBuilder(
           builder: (context, setLocal) => AlertDialog(
-            title: const Text('Import Backup'),
+            title: const Text('Restore Encrypted Backup'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -289,7 +294,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'This will add items to your vault.',
+                  'This will add items from the backup to your vault.',
                   style: TextStyle(fontSize: 12),
                 ),
               ],
@@ -340,28 +345,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     try {
       ref.read(autoLockProvider.notifier).suspendAutoLock();
-      final service = BackupService(repo: ref.read(credentialRepoProvider));
-      final count = await service.importEncryptedBackup(
-        file: File(path),
-        password: passCtrl.text.trim(),
-      );
-      ref.read(vaultRefreshProvider.notifier).state++;
-      if (!ctx.mounted) return;
-      Navigator.pop(ctx);
-      showDialog(
-        context: ctx,
-        builder: (_) => AlertDialog(
-          title: const Text('Import complete'),
-          content: Text('Imported $count item(s).'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      ref.read(autoLockProvider.notifier).resumeAutoLock();
+      try {
+        final service = BackupService(repo: ref.read(credentialRepoProvider));
+        final count = await service.importEncryptedBackup(
+          file: File(path),
+          password: passCtrl.text.trim(),
+        );
+        ref.read(vaultRefreshProvider.notifier).state++;
+        if (!ctx.mounted) return;
+        Navigator.pop(ctx);
+        showDialog(
+          context: ctx,
+          builder: (_) => AlertDialog(
+            title: const Text('Import complete'),
+            content: Text('Imported $count item(s).'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } finally {
+        ref.read(autoLockProvider.notifier).resumeAutoLock();
+      }
     } catch (e) {
       await CrashReporter.captureException(
         e,
@@ -369,7 +377,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         feature: 'backup',
         action: 'import_encrypted_backup',
       );
-      ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (!ctx.mounted) return;
       Navigator.pop(ctx);
       showDialog(
@@ -419,28 +426,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     try {
       ref.read(autoLockProvider.notifier).suspendAutoLock();
-      final service = CsvImportService(repo: ref.read(credentialRepoProvider));
-      final result = await service.importPasswords(File(path));
-      ref.read(vaultRefreshProvider.notifier).state++;
-      if (!ctx.mounted) return;
-      Navigator.pop(ctx);
-      showDialog(
-        context: ctx,
-        builder: (_) => AlertDialog(
-          title: const Text('CSV import complete'),
-          content: Text(
-            'Imported ${result.imported} item(s).'
-            '${result.skipped > 0 ? " Skipped ${result.skipped} row(s)." : ""}',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK'),
+      try {
+        final service = CsvImportService(repo: ref.read(credentialRepoProvider));
+        final result = await service.importPasswords(File(path));
+        ref.read(vaultRefreshProvider.notifier).state++;
+        if (!ctx.mounted) return;
+        Navigator.pop(ctx);
+        showDialog(
+          context: ctx,
+          builder: (_) => AlertDialog(
+            title: const Text('CSV import complete'),
+            content: Text(
+              'Imported ${result.imported} item(s).'
+              '${result.skipped > 0 ? " Skipped ${result.skipped} row(s)." : ""}',
             ),
-          ],
-        ),
-      );
-      ref.read(autoLockProvider.notifier).resumeAutoLock();
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } finally {
+        ref.read(autoLockProvider.notifier).resumeAutoLock();
+      }
     } catch (e) {
       await CrashReporter.captureException(
         e,
@@ -448,7 +458,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         feature: 'import_export',
         action: 'import_csv',
       );
-      ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (!ctx.mounted) return;
       Navigator.pop(ctx);
       showDialog(
@@ -513,14 +522,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     try {
       ref.read(autoLockProvider.notifier).suspendAutoLock();
-      final service = CsvExportService(repo: ref.read(credentialRepoProvider));
-      final file = await service.exportPasswordsCsv();
-      if (!ctx.mounted) return;
-      Navigator.pop(ctx);
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)], text: 'IronVault CSV export'),
-      );
-      ref.read(autoLockProvider.notifier).resumeAutoLock();
+      try {
+        final service = CsvExportService(repo: ref.read(credentialRepoProvider));
+        final file = await service.exportPasswordsCsv();
+        if (!ctx.mounted) return;
+        Navigator.pop(ctx);
+        await SharePlus.instance.share(
+          ShareParams(files: [XFile(file.path)], text: 'IronVault CSV export'),
+        );
+      } finally {
+        ref.read(autoLockProvider.notifier).resumeAutoLock();
+      }
     } catch (e) {
       await CrashReporter.captureException(
         e,
@@ -528,7 +540,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         feature: 'import_export',
         action: 'export_csv',
       );
-      ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (!ctx.mounted) return;
       Navigator.pop(ctx);
       showDialog(
@@ -562,7 +573,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Backup',
+                  'Backups and Import',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
@@ -573,8 +584,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: 6),
                 ListTile(
                   leading: const Icon(Icons.backup_outlined),
-                  title: const Text('Export backup'),
-                  subtitle: const Text('Save an encrypted backup file'),
+                  title: const Text('Create encrypted backup'),
+                  subtitle: const Text('Save a protected backup file to share or store'),
                   onTap: () {
                     Navigator.pop(context);
                     _exportBackup();
@@ -583,8 +594,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.download_for_offline_outlined),
-                  title: const Text('Import backup'),
-                  subtitle: const Text('Restore from a backup file'),
+                  title: const Text('Restore encrypted backup'),
+                  subtitle: const Text('Import items from a protected backup file'),
                   onTap: () {
                     Navigator.pop(context);
                     _importBackup();
@@ -599,7 +610,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.table_rows_outlined),
                   title: const Text('Export to CSV'),
-                  subtitle: const Text('Save passwords as a CSV file'),
+                  subtitle: const Text('Export passwords as a plain-text CSV file'),
                   onTap: () {
                     Navigator.pop(context);
                     _exportCsv();
@@ -609,7 +620,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.table_chart_outlined),
                   title: const Text('Import from CSV'),
-                  subtitle: const Text('Import passwords from a CSV file'),
+                  subtitle: const Text('Import passwords from a plain-text CSV file'),
                   onTap: () {
                     Navigator.pop(context);
                     _importCsv();
@@ -667,7 +678,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: widget.showAppBar ? AppBar(title: const Text("Settings")) : null,
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
           const SizedBox(height: 4),
 
@@ -678,12 +689,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _settingsTile(
             context,
             icon: Icons.vpn_key_outlined,
-            title: _hasRecoveryKey
-                ? "Generate New Recovery Key"
-                : "Set up Recovery Key",
+            title: "Recovery Key",
             subtitle: _hasRecoveryKey
-                ? "Replace your current recovery key"
-                : null,
+                ? "Generate a new recovery key"
+                : "Set up your recovery key",
             onTap: _setupRecoveryKey,
             trailing: const Icon(Icons.chevron_right),
           ),
@@ -713,7 +722,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _settingsTile(
             context,
             icon: Icons.backup_outlined,
-            title: "Backup",
+            title: "Backups and Import",
+            subtitle: "Export, restore, and move your data",
             onTap: _openBackupSheet,
           ),
 
@@ -733,7 +743,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             context,
             icon: Icons.lock_outline,
             title: "Lock on App Switch",
-            subtitle: "Auto-lock when app goes to background",
+            subtitle: "Lock when the app is sent to the background",
             value: _lockOnSwitch,
             onChanged: _toggleLockOnSwitch,
           ),
@@ -979,12 +989,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context,
       icon: Icons.lock_clock,
       title: "Auto-lock Timer",
+      subtitle:
+          "After backgrounding: ${_AutoLockSheet.options[_autoLockTimer] ?? 'Immediately'}",
       trailing: const Icon(Icons.chevron_right),
       onTap: () async {
-        showModalBottomSheet(
+        final selected = await showModalBottomSheet<String>(
           context: context,
           builder: (_) => const _AutoLockSheet(),
         );
+        if (selected != null && mounted) {
+          setState(() => _autoLockTimer = selected);
+        }
       },
     );
   }
@@ -1026,6 +1041,15 @@ class _AutoLockSheet extends ConsumerWidget {
                 "Auto-lock Timer",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
+              const SizedBox(height: 8),
+              Text(
+                "This timer is used after the app goes to the background.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
               const SizedBox(height: 16),
 
               ...options.entries.map((entry) {
@@ -1045,7 +1069,7 @@ class _AutoLockSheet extends ConsumerWidget {
                         .read(secureStorageProvider)
                         .writeValue("auto_lock_timer", key);
 
-                    Navigator.pop(context);
+                    Navigator.pop(context, key);
                   },
                 );
               }),

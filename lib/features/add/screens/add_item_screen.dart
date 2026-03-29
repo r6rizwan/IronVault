@@ -381,11 +381,14 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     ref.read(autoLockProvider.notifier).suspendAutoLock();
     List<String>? pages;
     try {
-      pages = await CunningDocumentScanner.getPictures();
-    } catch (_) {
-      pages = null;
+      try {
+        pages = await CunningDocumentScanner.getPictures();
+      } catch (_) {
+        pages = null;
+      }
+    } finally {
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
     }
-    ref.read(autoLockProvider.notifier).resumeAutoLock();
     if (pages == null || pages.isEmpty) return;
 
     final dir = await getApplicationDocumentsDirectory();
@@ -405,11 +408,14 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     final picker = ImagePicker();
     List<XFile> picked = [];
     try {
-      picked = await picker.pickMultiImage();
-    } catch (_) {
-      picked = [];
+      try {
+        picked = await picker.pickMultiImage();
+      } catch (_) {
+        picked = [];
+      }
+    } finally {
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
     }
-    ref.read(autoLockProvider.notifier).resumeAutoLock();
 
     if (picked.isEmpty) return;
 
@@ -429,15 +435,18 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     ref.read(autoLockProvider.notifier).suspendAutoLock();
     FilePickerResult? result;
     try {
-      result = await FilePicker.platform.pickFiles(
-        allowMultiple: true,
-        type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
-      );
-    } catch (_) {
-      result = null;
+      try {
+        result = await FilePicker.platform.pickFiles(
+          allowMultiple: true,
+          type: FileType.custom,
+          allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        );
+      } catch (_) {
+        result = null;
+      }
+    } finally {
+      ref.read(autoLockProvider.notifier).resumeAutoLock();
     }
-    ref.read(autoLockProvider.notifier).resumeAutoLock();
 
     if (result == null || result.files.isEmpty) return;
 

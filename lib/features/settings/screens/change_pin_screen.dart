@@ -37,6 +37,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
   final List<FocusNode> _confirmNodes = List.generate(4, (_) => FocusNode());
 
   bool _loading = false;
+  bool _oldPinVerified = false;
 
   void _showMessage(String text) {
     showAppToast(context, text);
@@ -46,10 +47,68 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     return list.map((c) => c.text).join();
   }
 
+  Future<bool> _verifyOldPinValue(String oldPin) async {
+    final storage = ref.read(secureStorageProvider);
+    final savedHash = await storage.readPinHash();
+    if (savedHash == null) {
+      _showMessage("PIN not set.");
+      return false;
+    }
+
+    var ok = false;
+    if (savedHash.contains(r'$')) {
+      ok = PinKdf.verifyPin(oldPin, savedHash);
+    } else {
+      final legacy = sha256.convert(utf8.encode(oldPin)).toString();
+      ok = legacy == savedHash;
+    }
+
+    if (!ok) return false;
+
+    if (!savedHash.contains(r'$')) {
+      await storage.writePinHash(PinKdf.hashPin(oldPin));
+    }
+
+    return true;
+  }
+
+  Future<void> _verifyOldPin() async {
+    final oldPin = _collect(_oldPin);
+    if (oldPin.length < 4) {
+      _showMessage("Enter your current 4-digit PIN.");
+      return;
+    }
+
+    setState(() => _loading = true);
+    final ok = await _verifyOldPinValue(oldPin);
+    if (!mounted) return;
+
+    if (!ok) {
+      setState(() => _loading = false);
+      for (final c in _oldPin) {
+        c.clear();
+      }
+      _oldNodes.first.requestFocus();
+      _showMessage("Incorrect old PIN.");
+      return;
+    }
+
+    setState(() {
+      _loading = false;
+      _oldPinVerified = true;
+    });
+    _newNodes.first.requestFocus();
+  }
+
   Future<void> _changePin() async {
     final oldPin = _collect(_oldPin);
     final newPin = _collect(_newPin);
     final confirmPin = _collect(_confirmPin);
+
+    if (!_oldPinVerified) {
+      await _verifyOldPin();
+      return;
+    }
 
     if (newPin.length < 4) {
       _showMessage("New PIN must be at least 4 digits.");
@@ -63,34 +122,26 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
 
     setState(() => _loading = true);
 
-    final storage = ref.read(secureStorageProvider);
-    final savedHash = await storage.readPinHash();
-    if (savedHash == null) {
-      setState(() => _loading = false);
-      _showMessage("PIN not set.");
-      return;
-    }
-
-    // Validate old PIN (supports legacy + PBKDF2)
-    var ok = false;
-    if (savedHash.contains(r'$')) {
-      ok = PinKdf.verifyPin(oldPin, savedHash);
-    } else {
-      final legacy = sha256.convert(utf8.encode(oldPin)).toString();
-      ok = legacy == savedHash;
-    }
+    final ok = await _verifyOldPinValue(oldPin);
     if (!ok) {
+      for (final c in _oldPin) {
+        c.clear();
+      }
+      for (final c in _newPin) {
+        c.clear();
+      }
+      for (final c in _confirmPin) {
+        c.clear();
+      }
       setState(() => _loading = false);
+      _oldPinVerified = false;
       _showMessage("Incorrect old PIN.");
+      _oldNodes.first.requestFocus();
       return;
-    }
-
-    // Upgrade legacy hash to PBKDF2 if needed
-    if (!savedHash.contains(r'$')) {
-      await storage.writePinHash(PinKdf.hashPin(oldPin));
     }
 
     // Save new PIN hash (PBKDF2)
+    final storage = ref.read(secureStorageProvider);
     await storage.writePinHash(PinKdf.hashPin(newPin));
 
     setState(() => _loading = false);
@@ -106,12 +157,14 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     required FocusNode node,
     required VoidCallback onNext,
     required VoidCallback onBack,
+    bool readOnly = false,
   }) {
     return SizedBox(
       width: 56,
       child: TextField(
         controller: controller,
         focusNode: node,
+        readOnly: readOnly,
         maxLength: 1,
         obscureText: true,
         obscuringCharacter: '•',
@@ -139,6 +192,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
         ),
         cursorColor: Theme.of(context).colorScheme.primary,
         onChanged: (value) {
+          if (readOnly) return;
           if (value.isEmpty) {
             onBack();
           } else {
@@ -152,6 +206,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
   Widget _otpRow(
     List<TextEditingController> controllers,
     List<FocusNode> nodes,
+    {bool readOnly = false}
   ) {
     return Wrap(
       alignment: WrapAlignment.center,
@@ -161,6 +216,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
         return _otpBox(
           controller: controllers[i],
           node: nodes[i],
+          readOnly: readOnly,
           onNext: () {
             if (i < pinLength - 1) {
               nodes[i + 1].requestFocus();
@@ -257,7 +313,9 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      "Use a 4-digit PIN you can remember.",
+                      _oldPinVerified
+                          ? "Enter and confirm your new 4-digit PIN."
+                          : "Verify your current 4-digit PIN first.",
                       style: TextStyle(fontSize: 12, color: textMuted),
                     ),
                     const SizedBox(height: 24),
@@ -270,31 +328,52 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _otpRow(_oldPin, _oldNodes),
+                    _otpRow(_oldPin, _oldNodes, readOnly: _oldPinVerified),
 
-                    spacing,
-
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "New PIN",
-                        style: Theme.of(context).textTheme.labelLarge,
+                    if (_oldPinVerified) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.verified_outlined,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "Current PIN verified",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _otpRow(_newPin, _newNodes),
+                      spacing,
 
-                    spacing,
-
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "Confirm New PIN",
-                        style: Theme.of(context).textTheme.labelLarge,
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "New PIN",
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _otpRow(_confirmPin, _confirmNodes),
+                      const SizedBox(height: 12),
+                      _otpRow(_newPin, _newNodes),
+
+                      spacing,
+
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Confirm New PIN",
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _otpRow(_confirmPin, _confirmNodes),
+                    ],
 
                     const SizedBox(height: 28),
 
@@ -317,7 +396,11 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Text("Update PIN"),
+                            : Text(
+                                _oldPinVerified
+                                    ? "Update PIN"
+                                    : "Verify Current PIN",
+                              ),
                       ),
                     ),
                   ],

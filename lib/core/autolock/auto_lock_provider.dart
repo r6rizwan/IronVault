@@ -21,56 +21,61 @@ class AutoLockController extends Notifier<bool> {
   /// Called when app goes inactive OR paused
   void markPaused({bool forceImmediate = false}) {
     if (_suspended) return;
-    _pausedAt = DateTime.now();
-    // Preserve a stronger force flag if any lifecycle event marks it true.
-    _forceImmediateOnResume = _forceImmediateOnResume || forceImmediate;
+    _pausedAt ??= DateTime.now();
+    if (forceImmediate) _forceImmediateOnResume = true;
   }
 
   /// Decide if app should lock when resumed
-  Future<void> evaluateLockOnResume() async {
+  Future<bool> evaluateLockOnResume() async {
+    final forceImmediate = _forceImmediateOnResume;
+    _forceImmediateOnResume = false;
+
     if (_suspended) {
       _resetPauseState();
-      return;
+      return false;
     }
     final storage = ref.read(secureStorageProvider);
     final lockOnSwitchValue = await storage.readValue('auto_lock_on_switch');
     final lockOnSwitchEnabled = (lockOnSwitchValue ?? 'true') == 'true';
     if (!lockOnSwitchEnabled) {
       _resetPauseState();
-      return;
+      return false;
     }
     final timer = await storage.readValue("auto_lock_timer") ?? "immediately";
 
-    if (_pausedAt == null) return;
+    if (_pausedAt == null) return false;
     final elapsed = DateTime.now().difference(_pausedAt!).inSeconds;
-    if (_forceImmediateOnResume) {
+    if (forceImmediate) {
       state = true;
       _resetPauseState();
-      return;
-    }
-
-    if (!_forceImmediateOnResume && elapsed < _minBackgroundSeconds) {
-      _resetPauseState();
-      return;
+      return true;
     }
 
     if (timer == "immediately") {
       state = true;
       _resetPauseState();
-      return;
+      return true;
+    }
+
+    if (!forceImmediate && elapsed < _minBackgroundSeconds) {
+      _resetPauseState();
+      return false;
     }
 
     final seconds = int.tryParse(timer);
     if (seconds == null || _pausedAt == null) {
       _resetPauseState();
-      return;
+      return false;
     }
 
+    var shouldLock = false;
     if (elapsed >= seconds) {
       state = true;
+      shouldLock = true;
     }
 
     _resetPauseState();
+    return shouldLock;
   }
 
   /// Manual unlock

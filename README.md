@@ -7,9 +7,11 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Local-first vault for passwords and sensitive records
 - Master PIN authentication with optional biometric unlock
 - Encrypted storage for vault entries
+- Onboarding focused on local privacy, secure unlock, and recovery-key safety
 - Android document scan/import support
+- Add-item draft restore to preserve unsaved progress after lock/interruption
 - Manual and startup update checks via GitHub Releases
-- In-app privacy, update, issue-reporting, and project-license links from the About screen
+- In-app privacy, update, issue-reporting, project-license, and share-app links from the About screen
 
 ## Key Features
 - Vault item types:
@@ -19,19 +21,22 @@ It stores vault data locally on the device and protects it with strong encryptio
   - Secure notes
   - Documents
 - Search and filtering
-- Category support
+- Category support with rename propagation across existing saved items
 - Password health analytics
 - Auto-lock with configurable timer and app-switch behavior
 - Recovery key flow for PIN recovery with protected reveal
 - Recovery key setup that can be resumed until the user confirms it has been saved
 - Recovery key regeneration from Settings after re-authentication
 - PIN retry cooldown after repeated failed attempts
+- New-item draft restore and keep/discard draft prompt on exit
 - Encrypted backup restore plus CSV password import/export
+- Pull-to-refresh on Vault, Search, and Password Health screens
 
 ## Security Model
 - Vault data is encrypted before storage
 - Master PIN is stored as a hash, not plain text
 - Optional biometric auth uses platform APIs
+- IronVault does not use cloud sync
 - Recovery key is hidden by default and requires re-authentication before reveal
 - Recovery key reveal supports biometrics or PIN fallback
 - Recovery key raw value is only kept temporarily until the user confirms it has been saved
@@ -39,6 +44,7 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Clipboard clearing is supported for copied sensitive fields
 - Android screenshot and recents-preview protection is enabled at the activity level
 - Screenshot/privacy behavior can still vary by platform and OEM implementation
+- Sentry crash reporting is enabled for release builds with safe metadata capture
 
 ## Ownership, License, and Brand Use
 This repository is licensed under MIT for source code reuse as defined in `LICENSE`.
@@ -80,7 +86,7 @@ flutter build appbundle --release
 ```
 
 Output paths:
-- `build/app/outputs/flutter-apk/app-release.apk`
+- `build/app/outputs/flutter-apk/ironvault-v<version>.apk`
 - `build/app/outputs/bundle/release/app-release.aab`
 
 ## Versioning
@@ -132,6 +138,7 @@ flutter analyze
 ## Known Limitations
 - Some platform behaviors (recents preview/privacy handling) can vary by OEM launcher and Android version.
 - Biometric availability depends on device hardware and enrollment state.
+- Auto-lock timer currently applies to app background/resume behavior, not true on-screen idle timeout.
 - Autofill service integration is currently disabled/limited by design decisions in this project stage.
 - Categories still use a separate local database path from the main vault items.
 

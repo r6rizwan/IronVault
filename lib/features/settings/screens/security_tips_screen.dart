@@ -10,12 +10,14 @@ class SecurityTipsScreen extends StatelessWidget {
       "Avoid reusing passwords between websites.",
       "Enable two-factor authentication whenever possible.",
       "Never share your master PIN with anyone.",
-      "Use long and complex passwords (12+ characters).",
-      "Change passwords regularly, especially for important accounts.",
-      "Keep your device updated with security patches.",
       "Do not store passwords in plain text or notes apps.",
+      "Save your recovery key somewhere safe and offline.",
+      "If you export passwords to CSV, remember that the file is not encrypted.",
+      "Use encrypted backups carefully and keep the backup password safe.",
+      "Enable biometrics if you want faster secure access to your vault.",
+      "Let the app auto-lock when you switch away from it.",
+      "Keep your device updated with security patches.",
       "Be cautious of phishing emails and fake login pages.",
-      "Lock your vault when not using the app.",
     ];
 
     return Scaffold(

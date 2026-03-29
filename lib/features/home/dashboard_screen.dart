@@ -79,7 +79,7 @@ class DashboardScreen extends ConsumerWidget {
       appBar: showAppBar ? AppBar(title: const Text('IronVault')) : null,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
           children: [
             Container(
               padding: const EdgeInsets.all(14),
@@ -100,7 +100,7 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              child: Column(
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
@@ -115,6 +115,17 @@ class DashboardScreen extends ConsumerWidget {
                   FutureBuilder<List<Map<String, dynamic>>>(
                     future: allItemsFuture,
                     builder: (context, snapshot) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Row(
+                          children: [
+                            _StatPillSkeleton(),
+                            SizedBox(width: 10),
+                            _StatPillSkeleton(),
+                            SizedBox(width: 10),
+                            _StatPillSkeleton(),
+                          ],
+                        );
+                      }
                       final stats = snapshot.hasData
                           ? _statsForItems(snapshot.data!)
                           : {'total': 0, 'favorites': 0, 'weak': 0};
@@ -140,20 +151,65 @@ class DashboardScreen extends ConsumerWidget {
                     },
                   ),
                   const SizedBox(height: 6),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const PasswordHealthScreen(),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PasswordHealthScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.14),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.health_and_safety_outlined,
+                            color: Colors.white,
+                            size: 18,
                           ),
-                        );
-                      },
-                      child: const Text(
-                        "Password Health",
-                        style: TextStyle(color: Colors.white),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Open Password Health",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  "Review weak, reused, and old passwords.",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            color: Colors.white70,
+                            size: 14,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -188,6 +244,17 @@ class DashboardScreen extends ConsumerWidget {
             FutureBuilder<List<Map<String, dynamic>>>(
               future: allItemsFuture,
               builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return SizedBox(
+                    height: 46,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: 4,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (_, __) => const _ChipSkeleton(width: 108),
+                    ),
+                  );
+                }
                 final counts = snapshot.hasData
                     ? _categoryCountsForItems(snapshot.data!)
                     : <String, int>{};
@@ -287,6 +354,15 @@ class DashboardScreen extends ConsumerWidget {
             FutureBuilder<List<Map<String, dynamic>>>(
               future: allItemsFuture,
               builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Column(
+                    children: [
+                      _RecentTileSkeleton(),
+                      _RecentTileSkeleton(),
+                      _RecentTileSkeleton(),
+                    ],
+                  );
+                }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
@@ -342,6 +418,15 @@ class _StatPill extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _StatPillSkeleton extends StatelessWidget {
+  const _StatPillSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _SkeletonBox(width: 84, height: 34, radius: 999);
   }
 }
 
@@ -441,6 +526,85 @@ class _RecentTile extends StatelessWidget {
             const Icon(Icons.chevron_right, size: 18),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _RecentTileSkeleton extends StatelessWidget {
+  const _RecentTileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const Row(
+        children: [
+          _SkeletonBox(width: 40, height: 40, radius: 20),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SkeletonBox(width: double.infinity, height: 14),
+                SizedBox(height: 8),
+                _SkeletonBox(width: 120, height: 12),
+              ],
+            ),
+          ),
+          SizedBox(width: 12),
+          _SkeletonBox(width: 18, height: 18, radius: 9),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChipSkeleton extends StatelessWidget {
+  final double width;
+
+  const _ChipSkeleton({required this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SkeletonBox(width: width, height: 38, radius: 24);
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  final double width;
+  final double height;
+  final double radius;
+
+  const _SkeletonBox({
+    required this.width,
+    required this.height,
+    this.radius = 10,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: width == double.infinity ? null : width,
+      height: height,
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.black.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }

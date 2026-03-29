@@ -43,6 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Timer? _cooldownTimer;
   bool _loading = false;
   Duration? _remainingCooldown;
+  String? _inlineError;
 
   @override
   void initState() {
@@ -218,6 +219,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
 
     if (!mounted) return;
+    if (_inlineError != null) {
+      setState(() => _inlineError = null);
+      return;
+    }
     setState(() {});
   }
 
@@ -278,6 +283,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         final message = _isCooldownActive
             ? 'Too many attempts. Try again in ${_formatCooldown(_remainingCooldown!)}.'
             : 'Invalid PIN';
+        setState(() => _inlineError = message);
         showAppToast(context, message);
       }
 
@@ -311,6 +317,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   Widget _otpBox({required int index}) {
     final filled = _pinCtrls[index].text.isNotEmpty;
+    final hasError = _inlineError != null && !_isCooldownActive;
 
     return SizedBox(
       width: 56,
@@ -349,7 +356,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: filled
+                color: hasError
+                    ? Theme.of(context).colorScheme.error
+                    : filled
                     ? Theme.of(context).colorScheme.primary
                     : Colors.grey.shade400,
                 width: 1.4,
@@ -357,8 +366,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Colors.blueAccent,
+              borderSide: BorderSide(
+                color: hasError
+                    ? Theme.of(context).colorScheme.error
+                    : Colors.blueAccent,
                 width: 1.8,
               ),
             ),
@@ -440,6 +451,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             : "Unlock IronVault",
                         style: TextStyle(fontSize: 12, color: textMuted),
                       ),
+                      if (_inlineError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _inlineError!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 18),
 
                       AnimatedBuilder(

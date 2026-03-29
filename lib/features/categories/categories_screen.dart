@@ -90,6 +90,14 @@ class CategoriesScreen extends ConsumerWidget {
                         ),
                       );
                     },
+                    onEdit: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AddCategoryScreen(category: c),
+                        ),
+                      );
+                    },
                     onDelete: () async {
                       final ctx = context;
                       final repo = ref.read(credentialRepoProvider);
@@ -113,7 +121,7 @@ class CategoriesScreen extends ConsumerWidget {
                             usedCount == 0
                                 ? 'Delete this category?'
                                 : 'This category is used by $usedCount item(s). '
-                                      'Deleting it will remove the category from those items.',
+                                      'Deleting it will remove the category from those items, but the items will remain saved.',
                           ),
                           actions: [
                             TextButton(
@@ -151,6 +159,7 @@ class _CategoryTile extends StatelessWidget {
   final Color color;
   final bool isDark;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _CategoryTile({
@@ -159,6 +168,7 @@ class _CategoryTile extends StatelessWidget {
     required this.color,
     required this.isDark,
     required this.onTap,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -199,6 +209,11 @@ class _CategoryTile extends StatelessWidget {
                   color: textColor,
                 ),
               ),
+            ),
+            IconButton(
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined),
+              color: textMuted,
             ),
             IconButton(
               onPressed: onDelete,

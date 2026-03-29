@@ -297,6 +297,26 @@ class CredentialRepository {
     return updated;
   }
 
+  /// Rename category references for items that match a category name.
+  /// Returns number of updated items.
+  Future<int> renameCategoryReferences(String oldName, String newName) async {
+    final items = await getAllDecrypted();
+    var updated = 0;
+    for (final item in items) {
+      final category = (item['category'] ?? '').toString();
+      if (category.toLowerCase() != oldName.toLowerCase()) continue;
+      await updateItem(
+        id: item['id'] as String,
+        type: item['type'] as String,
+        title: item['title'] as String,
+        fields: (item['fields'] as Map).cast<String, String>(),
+        category: newName,
+      );
+      updated++;
+    }
+    return updated;
+  }
+
   Map<String, String> _decodeFields(Credential row, String key) {
     if (row.data != null) {
       try {

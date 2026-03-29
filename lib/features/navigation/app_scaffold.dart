@@ -9,6 +9,7 @@ import 'package:ironvault/core/update/app_update_service.dart';
 import 'package:ironvault/core/update/update_prompt.dart';
 import 'package:ironvault/core/secure_storage.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/navigation/global_nav.dart';
@@ -207,6 +208,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
         SystemNavigator.pop();
       },
       child: Scaffold(
+        extendBody: true,
         appBar: AppBar(
           title: Text(_titleForPage(_currentPage)),
           actions: [
@@ -276,31 +278,51 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
           top: false,
           child: Container(
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 24,
-                  offset: const Offset(0, 12),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).cardColor.withValues(alpha: 0.82),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 24,
+                        offset: const Offset(0, 12),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _navItem(icon: Icons.home_rounded, label: 'Home', index: 0),
+                      _navItem(icon: Icons.lock_rounded, label: 'Vault', index: 1),
+                      const SizedBox(width: 46),
+                      _navItem(
+                        icon: Icons.search_rounded,
+                        label: 'Search',
+                        index: 2,
+                      ),
+                      _navItem(
+                        icon: Icons.settings_rounded,
+                        label: 'Settings',
+                        index: 3,
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _navItem(icon: Icons.home_rounded, label: 'Home', index: 0),
-                _navItem(icon: Icons.lock_rounded, label: 'Vault', index: 1),
-                const SizedBox(width: 46),
-                _navItem(icon: Icons.search_rounded, label: 'Search', index: 2),
-                _navItem(
-                  icon: Icons.settings_rounded,
-                  label: 'Settings',
-                  index: 3,
-                ),
-              ],
+              ),
             ),
           ),
         ),

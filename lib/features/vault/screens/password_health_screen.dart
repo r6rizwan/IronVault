@@ -95,7 +95,7 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Password Health')),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const _PasswordHealthLoadingState()
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
@@ -114,7 +114,7 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
                   _sectionTitle('Weak Passwords'),
                   _buildList(
                     weak.toList(),
-                    emptyText: 'No weak passwords found.',
+                    emptyText: 'No weak passwords found right now.',
                   ),
                   const SizedBox(height: 16),
                   _sectionTitle('Reused Passwords'),
@@ -123,7 +123,7 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
                   _sectionTitle('Old Passwords'),
                   _buildList(
                     old.toList(),
-                    emptyText: 'No old passwords found.',
+                    emptyText: 'No old passwords need attention right now.',
                   ),
                 ],
               ),
@@ -327,7 +327,7 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Text(
-          'No reused passwords found.',
+          'No reused passwords found right now.',
           style: TextStyle(color: AppThemeColors.textMuted(context)),
         ),
       );
@@ -351,6 +351,160 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
           }).toList(),
         );
       }).toList(),
+    );
+  }
+}
+
+class _PasswordHealthLoadingState extends StatelessWidget {
+  const _PasswordHealthLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: const [
+        _PasswordHealthScoreSkeleton(),
+        SizedBox(height: 16),
+        _PasswordHealthSectionSkeleton(),
+        SizedBox(height: 16),
+        _PasswordHealthSectionSkeleton(),
+        SizedBox(height: 16),
+        _PasswordHealthSectionSkeleton(),
+      ],
+    );
+  }
+}
+
+class _PasswordHealthScoreSkeleton extends StatelessWidget {
+  const _PasswordHealthScoreSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fill = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.06);
+
+    Widget bar(double width, double height) {
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: fill,
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 12,
+            color: Colors.black12.withValues(alpha: 0.04),
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          bar(130, 16),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Container(
+                width: 88,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: fill,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: bar(double.infinity, 12)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: List.generate(
+              4,
+              (_) => Container(
+                width: 72,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: fill,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PasswordHealthSectionSkeleton extends StatelessWidget {
+  const _PasswordHealthSectionSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fill = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.06);
+
+    Widget line(double width, double height) {
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: fill,
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
+    }
+
+    Widget item() {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 10,
+              color: Colors.black12.withValues(alpha: 0.04),
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            line(150, 14),
+            const SizedBox(height: 8),
+            line(100, 12),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        line(120, 16),
+        const SizedBox(height: 10),
+        item(),
+        const SizedBox(height: 10),
+        item(),
+      ],
     );
   }
 }

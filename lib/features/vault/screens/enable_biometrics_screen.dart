@@ -46,98 +46,98 @@ class _EnableBiometricsScreenState
     try {
       final autoLock = ref.read(autoLockProvider.notifier);
       autoLock.suspendAutoLock();
-      // 1) Basic capability checks
-      final bool canCheck = await auth.canCheckBiometrics;
-      final bool isSupported = await auth.isDeviceSupported();
+      try {
+        // 1) Basic capability checks
+        final bool canCheck = await auth.canCheckBiometrics;
+        final bool isSupported = await auth.isDeviceSupported();
 
-      if (kDebugMode) {
-        debugPrint(
-          '[BIOMETRIC] canCheck: $canCheck, isSupported: $isSupported',
-        );
-      }
+        if (kDebugMode) {
+          debugPrint(
+            '[BIOMETRIC] canCheck: $canCheck, isSupported: $isSupported',
+          );
+        }
 
-      if (!canCheck || !isSupported) {
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Biometrics not supported'),
-            content: const Text(
-              'This device does not support biometric authentication.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+        if (!canCheck || !isSupported) {
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Biometrics not supported'),
+              content: const Text(
+                'This device does not support biometric authentication.',
               ),
-            ],
-          ),
-        );
-        autoLock.resumeAutoLock();
-        return;
-      }
-
-      // 2) Are there enrolled biometrics (fingerprints / face) ?
-      final List<BiometricType> enrolled = await auth.getAvailableBiometrics();
-      if (kDebugMode) {
-        debugPrint('[BIOMETRIC] enrolled types: $enrolled');
-      }
-
-      if (enrolled.isEmpty) {
-        if (!mounted) return;
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Biometrics not set'),
-            content: const Text(
-              'Set up fingerprint or face unlock in your device settings.',
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+          );
+          return;
+        }
+
+        // 2) Are there enrolled biometrics (fingerprints / face) ?
+        final List<BiometricType> enrolled = await auth.getAvailableBiometrics();
+        if (kDebugMode) {
+          debugPrint('[BIOMETRIC] enrolled types: $enrolled');
+        }
+
+        if (enrolled.isEmpty) {
+          if (!mounted) return;
+          showDialog(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('Biometrics not set'),
+              content: const Text(
+                'Set up fingerprint or face unlock in your device settings.',
               ),
-            ],
-          ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+          return;
+        }
+
+        // 3) Try to authenticate using only widely supported parameters
+        final bool didAuthenticate = await auth.authenticate(
+          localizedReason: 'Confirm to enable biometric unlock for your vault',
+          biometricOnly: true,
         );
+
+        if (kDebugMode) {
+          debugPrint('[BIOMETRIC] authenticate result: $didAuthenticate');
+        }
+
+        if (!mounted) return;
+
+        if (didAuthenticate) {
+          // Save preference
+          final storage = ref.read(secureStorageProvider);
+          await storage.writeValue('biometrics_enabled', 'true');
+
+          // 🔥 RESET AUTO-LOCK STATE
+          ref.read(autoLockProvider.notifier).unlock();
+
+          if (!mounted) return;
+          showAppToast(context, 'Biometrics enabled');
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const AppScaffold()),
+          );
+        } else {
+          if (!mounted) return;
+          showAppToast(context, 'Biometric cancelled. Use PIN instead.');
+        }
+      } finally {
         autoLock.resumeAutoLock();
-        return;
-      }
-
-      // 3) Try to authenticate using only widely supported parameters
-      final bool didAuthenticate = await auth.authenticate(
-        localizedReason: 'Confirm to enable biometric unlock for your vault',
-        biometricOnly: true,
-      );
-      autoLock.resumeAutoLock();
-
-      if (kDebugMode) {
-        debugPrint('[BIOMETRIC] authenticate result: $didAuthenticate');
-      }
-
-      if (!mounted) return;
-
-      if (didAuthenticate) {
-        // Save preference
-        final storage = ref.read(secureStorageProvider);
-        await storage.writeValue('biometrics_enabled', 'true');
-
-        // 🔥 RESET AUTO-LOCK STATE
-        ref.read(autoLockProvider.notifier).unlock();
-
-        if (!mounted) return;
-        showAppToast(context, 'Biometrics enabled');
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AppScaffold()),
-        );
-      } else {
-        if (!mounted) return;
-        showAppToast(context, 'Biometric cancelled. Use PIN instead.');
       }
     } catch (e, st) {
-      ref.read(autoLockProvider.notifier).resumeAutoLock();
       if (kDebugMode) {
         debugPrint('[BIOMETRIC] error: $e\n$st');
       }

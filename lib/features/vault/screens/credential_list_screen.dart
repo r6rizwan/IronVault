@@ -283,166 +283,172 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
       body: Builder(
         builder: (context) {
           return _loading
-              ? const Center(child: CircularProgressIndicator())
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                  child: ListView.separated(
+                    itemCount: 6,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, __) => const _VaultItemSkeleton(),
+                  ),
+                )
               : GestureDetector(
                   onTap: () {
                     FocusScope.of(context).unfocus();
                   },
                   behavior: HitTestBehavior.translucent,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 4),
-
-                        /// empty state
-                        if (filteredItems.isEmpty)
-                          Expanded(
-                            child: const EmptyState(
-                              icon: Icons.lock_open_rounded,
-                              title: "No items found",
-                              subtitle:
-                                  "Try a different search or add a new item.",
-                            ),
+                  child: RefreshIndicator(
+                    onRefresh: _loadCredentials,
+                    child: filteredItems.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                            children: const [
+                              SizedBox(height: 4),
+                              SizedBox(
+                                height: 420,
+                                child: EmptyState(
+                                  icon: Icons.lock_open_rounded,
+                                  title: "Your vault is empty",
+                                  subtitle:
+                                      "Add your first item to start storing passwords, notes, cards, and documents.",
+                                ),
+                              ),
+                            ],
                           )
-                        else
-                          Expanded(
-                            child: ListView.separated(
-                              itemCount: filteredItems.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (_, index) {
-                                final item = filteredItems[index];
-                                final isFav = item["isFavorite"] == true;
+                        : ListView.separated(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                            itemCount: filteredItems.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (_, index) {
+                              final item = filteredItems[index];
+                              final isFav = item["isFavorite"] == true;
 
-                                return InkWell(
-                                  borderRadius: BorderRadius.circular(18),
-                                  onTap: () async {
-                                    final _ = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            ViewCredentialScreen(item: item),
+                              return InkWell(
+                                borderRadius: BorderRadius.circular(18),
+                                onTap: () async {
+                                  final _ = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          ViewCredentialScreen(item: item),
+                                    ),
+                                  );
+                                  if (mounted) await _loadCredentials();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).cardColor,
+                                    borderRadius: BorderRadius.circular(18),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        blurRadius: 12,
+                                        spreadRadius: 1,
+                                        color: Colors.black12.withValues(
+                                          alpha: 0.05,
+                                        ),
+                                        offset: const Offset(0, 6),
                                       ),
-                                    );
-                                    if (mounted) await _loadCredentials();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).cardColor,
-                                      borderRadius: BorderRadius.circular(18),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          blurRadius: 12,
-                                          spreadRadius: 1,
-                                          color: Colors.black12.withValues(
-                                            alpha: 0.05,
-                                          ),
-                                          offset: const Offset(0, 6),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 22,
-                                          backgroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .primary
-                                              .withValues(alpha: 0.12),
-                                          child: Icon(
-                                            typeByKey(
-                                              item['type'] ?? 'password',
-                                            ).icon,
-                                            color: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 14),
-
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      item["title"],
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 4),
-                                              if (_subtitleForItem(
-                                                item,
-                                              ).trim().isNotEmpty)
-                                                Text(
-                                                  _subtitleForItem(item),
-                                                  style: TextStyle(
-                                                    color: Colors.grey.shade600,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              if (item["category"] != null &&
-                                                  item["category"]
-                                                      .toString()
-                                                      .trim()
-                                                      .isNotEmpty)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 4,
-                                                      ),
-                                                  child: Text(
-                                                    item["category"],
-                                                    style: TextStyle(
-                                                      color:
-                                                          Colors.grey.shade500,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        IconButton(
-                                          onPressed: () =>
-                                              _toggleFavorite(item),
-                                          icon: Icon(
-                                            isFav
-                                                ? Icons.star_rounded
-                                                : Icons.star_border_rounded,
-                                            color: isFav
-                                                ? Colors.amber
-                                                : Colors.grey,
-                                            size: 24,
-                                          ),
-                                        ),
-
-                                        Icon(
-                                          Icons.arrow_forward_ios,
-                                          size: 16,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                      ],
-                                    ),
+                                    ],
                                   ),
-                                );
-                              },
-                            ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 22,
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withValues(alpha: 0.12),
+                                        child: Icon(
+                                          typeByKey(
+                                            item['type'] ?? 'password',
+                                          ).icon,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    item["title"],
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            if (_subtitleForItem(
+                                              item,
+                                            ).trim().isNotEmpty)
+                                              Text(
+                                                _subtitleForItem(item),
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade600,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            if (item["category"] != null &&
+                                                item["category"]
+                                                    .toString()
+                                                    .trim()
+                                                    .isNotEmpty)
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.only(
+                                                      top: 4,
+                                                    ),
+                                                child: Text(
+                                                  item["category"],
+                                                  style: TextStyle(
+                                                    color:
+                                                        Colors.grey.shade500,
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      IconButton(
+                                        onPressed: () => _toggleFavorite(item),
+                                        icon: Icon(
+                                          isFav
+                                              ? Icons.star_rounded
+                                              : Icons.star_border_rounded,
+                                          color: isFav
+                                              ? Colors.amber
+                                              : Colors.grey,
+                                          size: 24,
+                                        ),
+                                      ),
+
+                                      Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 16,
+                                        color: Colors.grey.shade400,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                      ],
-                    ),
                   ),
                 );
         },
@@ -464,5 +470,87 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
       case SortOption.recentUpdated:
         return "Updated";
     }
+  }
+}
+
+class _VaultItemSkeleton extends StatelessWidget {
+  const _VaultItemSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fill = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.06);
+
+    Widget bar(double width, double height) {
+      return Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: fill,
+          borderRadius: BorderRadius.circular(8),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 12,
+            spreadRadius: 1,
+            color: Colors.black12.withValues(alpha: 0.05),
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(22),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                bar(150, 16),
+                const SizedBox(height: 8),
+                bar(110, 12),
+                const SizedBox(height: 6),
+                bar(72, 10),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
