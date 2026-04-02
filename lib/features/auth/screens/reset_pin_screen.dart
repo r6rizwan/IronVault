@@ -17,6 +17,9 @@ class ResetPinScreen extends ConsumerStatefulWidget {
 }
 
 class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
+  static const _failedPinAttemptsKey = 'failed_pin_attempts';
+  static const _pinCooldownUntilKey = 'pin_cooldown_until';
+
   final int pinLength = 4;
 
   final List<TextEditingController> _pin = List.generate(
@@ -32,6 +35,10 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
   final List<FocusNode> _confirmNodes = List.generate(4, (_) => FocusNode());
 
   bool _loading = false;
+
+  bool get _canContinue =>
+      _collect(_pin).length == pinLength &&
+      _collect(_confirm).length == pinLength;
 
   void _showMsg(String msg) {
     showAppToast(context, msg);
@@ -59,6 +66,8 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
 
     final storage = ref.read(secureStorageProvider);
     await storage.writePinHash(PinKdf.hashPin(pin));
+    await storage.deleteValue(_failedPinAttemptsKey);
+    await storage.deleteValue(_pinCooldownUntilKey);
 
     setState(() => _loading = false);
 
@@ -112,6 +121,7 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
         ),
         cursorColor: Theme.of(context).colorScheme.primary,
         onChanged: (value) {
+          setState(() {});
           if (value.isEmpty) {
             onBack();
           } else {
@@ -125,6 +135,7 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
   Widget _otpRow(
     List<TextEditingController> controllers,
     List<FocusNode> nodes,
+    {FocusNode? nextGroupFirstNode}
   ) {
     return Wrap(
       alignment: WrapAlignment.center,
@@ -137,17 +148,35 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
           onNext: () {
             if (i < pinLength - 1) {
               nodes[i + 1].requestFocus();
+            } else if (nextGroupFirstNode != null) {
+              nextGroupFirstNode.requestFocus();
             }
           },
           onBack: () {
             if (i > 0) {
-              controllers[i - 1].clear();
               nodes[i - 1].requestFocus();
             }
           },
         );
       }),
     );
+  }
+
+  @override
+  void dispose() {
+    for (final c in _pin) {
+      c.dispose();
+    }
+    for (final c in _confirm) {
+      c.dispose();
+    }
+    for (final n in _pinNodes) {
+      n.dispose();
+    }
+    for (final n in _confirmNodes) {
+      n.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -210,7 +239,11 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _otpRow(_pin, _pinNodes),
+                    _otpRow(
+                      _pin,
+                      _pinNodes,
+                      nextGroupFirstNode: _confirmNodes.first,
+                    ),
                     const SizedBox(height: 20),
                     Align(
                       alignment: Alignment.centerLeft,
@@ -225,7 +258,7 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _loading ? null : _savePin,
+                        onPressed: (_loading || !_canContinue) ? null : _savePin,
                         child: _loading
                             ? const SizedBox(
                                 height: 22,

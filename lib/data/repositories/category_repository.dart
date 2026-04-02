@@ -162,12 +162,32 @@ class CategoryRepository {
 
   Future<VaultCategory> insert(VaultCategory c) async {
     final database = await db;
+    final existing = await database.query(
+      _table,
+      columns: ['id'],
+      where: 'LOWER(name) = ?',
+      whereArgs: [c.name.toLowerCase()],
+      limit: 1,
+    );
+    if (existing.isNotEmpty) {
+      throw StateError('Category name already exists');
+    }
     final id = await database.insert(_table, c.toMap());
     return c.copyWith(id: id);
   }
 
   Future<int> update(VaultCategory c) async {
     final database = await db;
+    final existing = await database.query(
+      _table,
+      columns: ['id'],
+      where: 'LOWER(name) = ? AND id != ?',
+      whereArgs: [c.name.toLowerCase(), c.id],
+      limit: 1,
+    );
+    if (existing.isNotEmpty) {
+      throw StateError('Category name already exists');
+    }
     return database.update(
       _table,
       c.toMap(),

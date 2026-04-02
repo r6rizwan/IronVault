@@ -10,6 +10,9 @@ import 'package:ironvault/features/auth/screens/setup_pin_screen.dart';
 class ForgotPinScreen extends ConsumerWidget {
   const ForgotPinScreen({super.key});
 
+  static const _failedPinAttemptsKey = 'failed_pin_attempts';
+  static const _pinCooldownUntilKey = 'pin_cooldown_until';
+
   Future<void> _resetVault(BuildContext context, WidgetRef ref) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -40,6 +43,8 @@ class ForgotPinScreen extends ConsumerWidget {
     await storage.deletePinHash();
     await storage.deleteRecoveryKeyHash();
     await RecoveryKeyUtil.clearPendingState(storage);
+    await storage.deleteValue(_failedPinAttemptsKey);
+    await storage.deleteValue(_pinCooldownUntilKey);
     await storage.writeMasterKey(EncryptionUtil.generateKeyBase64());
 
     if (context.mounted) {

@@ -37,6 +37,11 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
   final List<FocusNode> _confirmNodes = List.generate(4, (_) => FocusNode());
 
   bool _loading = false;
+  bool _obscurePin = true;
+
+  bool get _canContinue =>
+      _collect(_pin).length == pinLength &&
+      _collect(_confirm).length == pinLength;
 
   void _showMsg(String msg) {
     showAppToast(context, msg);
@@ -69,8 +74,6 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
     }
     await storage.writePinHash(PinKdf.hashPin(pin));
 
-    setState(() => _loading = false);
-
     final existingRecovery = await storage.readRecoveryKeyHash();
     if (existingRecovery == null) {
       final key = RecoveryKeyUtil.generate();
@@ -82,6 +85,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
         MaterialPageRoute(
           builder: (_) => RecoveryKeyScreen(
             recoveryKey: key,
+            trustedForReveal: true,
             onDone: () {
               navKey.currentState?.pushReplacement(
                 MaterialPageRoute(
@@ -114,7 +118,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
         controller: controller,
         focusNode: node,
         maxLength: 1,
-        obscureText: true,
+        obscureText: _obscurePin,
         obscuringCharacter: '•',
         enableSuggestions: false,
         autocorrect: false,
@@ -128,10 +132,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
           fillColor: Theme.of(context).inputDecorationTheme.fillColor,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: Colors.grey.shade400,
-              width: 1.4,
-            ),
+            borderSide: BorderSide(color: Colors.grey.shade400, width: 1.4),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -143,6 +144,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
         ),
         cursorColor: Theme.of(context).colorScheme.primary,
         onChanged: (value) {
+          setState(() {});
           if (value.isEmpty) {
             onBack();
           } else {
@@ -155,8 +157,9 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
 
   Widget _otpRow(
     List<TextEditingController> controllers,
-    List<FocusNode> nodes,
-  ) {
+    List<FocusNode> nodes, {
+    FocusNode? nextGroupFirstNode,
+  }) {
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: 12,
@@ -168,17 +171,35 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
           onNext: () {
             if (i < pinLength - 1) {
               nodes[i + 1].requestFocus();
+            } else if (nextGroupFirstNode != null) {
+              nextGroupFirstNode.requestFocus();
             }
           },
           onBack: () {
             if (i > 0) {
-              controllers[i - 1].clear();
               nodes[i - 1].requestFocus();
             }
           },
         );
       }),
     );
+  }
+
+  @override
+  void dispose() {
+    for (final c in _pin) {
+      c.dispose();
+    }
+    for (final c in _confirm) {
+      c.dispose();
+    }
+    for (final n in _pinNodes) {
+      n.dispose();
+    }
+    for (final n in _confirmNodes) {
+      n.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -199,91 +220,121 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
       body: Container(
         decoration: BoxDecoration(gradient: bgGradient),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 22),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 34,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                      child: Icon(
-                        Icons.lock,
-                        size: 30,
-                        color: Theme.of(context).colorScheme.primary,
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 460),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "Set a 4-digit Master PIN",
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: textColor),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      "This PIN will unlock your secure vault.",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(
+                            radius: 34,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.12),
+                            child: Icon(
+                              Icons.lock,
+                              size: 30,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "Set a 4-digit Master PIN",
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium?.copyWith(color: textColor),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "This PIN will unlock your secure vault.",
+                            style: TextStyle(fontSize: 12, color: textMuted),
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () {
+                                setState(() => _obscurePin = !_obscurePin);
+                              },
+                              icon: Icon(
+                                _obscurePin
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                size: 18,
+                              ),
+                              label: Text(
+                                _obscurePin ? "Show PIN" : "Hide PIN",
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
 
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "Enter PIN",
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _otpRow(_pin, _pinNodes),
-                    const SizedBox(height: 20),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              "Enter PIN",
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _otpRow(
+                            _pin,
+                            _pinNodes,
+                            nextGroupFirstNode: _confirmNodes.first,
+                          ),
+                          const SizedBox(height: 20),
 
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "Confirm PIN",
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _otpRow(_confirm, _confirmNodes),
-                    const SizedBox(height: 24),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              "Confirm PIN",
+                              style: Theme.of(context).textTheme.labelLarge,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _otpRow(_confirm, _confirmNodes),
+                          const SizedBox(height: 24),
 
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : _savePin,
-                        child: _loading
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text("Continue"),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: (_loading || !_canContinue)
+                                  ? null
+                                  : _savePin,
+                              child: _loading
+                                  ? const SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text("Continue"),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),

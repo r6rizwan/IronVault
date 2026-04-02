@@ -57,6 +57,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
 
     final repo = ref.read(credentialRepoProvider);
     final data = await repo.getAllDecrypted();
+    if (!mounted) return;
 
     _items = data;
     _applySorting();

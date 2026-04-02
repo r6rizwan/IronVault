@@ -14,6 +14,7 @@ class PasswordHealthScreen extends ConsumerStatefulWidget {
 class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
   bool _loading = false;
   List<Map<String, dynamic>> _items = [];
+  late final ProviderSubscription<int> _refreshSub;
 
   static const int _minLength = 10;
   static const int _oldDays = 180;
@@ -22,6 +23,16 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
   void initState() {
     super.initState();
     _load();
+    _refreshSub = ref.listenManual<int>(
+      vaultRefreshProvider,
+      (_, __) => _load(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _refreshSub.close();
+    super.dispose();
   }
 
   Future<void> _load() async {

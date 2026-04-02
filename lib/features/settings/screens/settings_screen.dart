@@ -661,6 +661,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       MaterialPageRoute(
         builder: (_) => RecoveryKeyScreen(
           recoveryKey: key,
+          trustedForReveal: true,
           doneLabel: 'Done',
           onDone: () => Navigator.pop(context),
         ),
@@ -718,7 +719,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onChanged: _toggleBiometrics,
           ),
 
-          _autoLockTile(context, ref),
+          _autoLockSection(context, ref),
           _settingsTile(
             context,
             icon: Icons.backup_outlined,
@@ -737,15 +738,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: "Use dark theme",
             value: isDarkTheme,
             onChanged: _toggleTheme,
-          ),
-
-          _switchTile(
-            context,
-            icon: Icons.lock_outline,
-            title: "Lock on App Switch",
-            subtitle: "Lock when the app is sent to the background",
-            value: _lockOnSwitch,
-            onChanged: _toggleLockOnSwitch,
           ),
 
           _switchTile(
@@ -983,24 +975,71 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  // AUTO-LOCK TIMER TILE
-  Widget _autoLockTile(BuildContext context, WidgetRef ref) {
-    return _settingsTile(
-      context,
-      icon: Icons.lock_clock,
-      title: "Auto-lock Timer",
-      subtitle:
-          "After backgrounding: ${_AutoLockSheet.options[_autoLockTimer] ?? 'Immediately'}",
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () async {
-        final selected = await showModalBottomSheet<String>(
-          context: context,
-          builder: (_) => const _AutoLockSheet(),
-        );
-        if (selected != null && mounted) {
-          setState(() => _autoLockTimer = selected);
-        }
-      },
+  Widget _autoLockSection(BuildContext context, WidgetRef ref) {
+    final currentTimerLabel =
+        _AutoLockSheet.options[_autoLockTimer] ?? 'Immediately';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              radius: 18,
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.12),
+              child: Icon(
+                Icons.lock_clock,
+                size: 18,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            title: const Text("Auto-Lock"),
+            subtitle: const Text(
+              "Lock when the app is sent to the background",
+            ),
+            trailing: Switch(
+              value: _lockOnSwitch,
+              onChanged: _toggleLockOnSwitch,
+            ),
+          ),
+          if (_lockOnSwitch) ...[
+            Divider(
+              height: 1,
+              indent: 16,
+              endIndent: 16,
+              color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+            ),
+            ListTile(
+              leading: const SizedBox(width: 36),
+              title: const Text("Lock timing"),
+              subtitle: Text("After backgrounding: $currentTimerLabel"),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                final selected = await showModalBottomSheet<String>(
+                  context: context,
+                  builder: (_) => const _AutoLockSheet(),
+                );
+                if (selected != null && mounted) {
+                  setState(() => _autoLockTimer = selected);
+                }
+              },
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

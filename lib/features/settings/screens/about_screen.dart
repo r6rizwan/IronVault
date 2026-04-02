@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/secure_storage.dart';
 import 'package:ironvault/core/update/app_update_service.dart';
 import 'package:ironvault/core/update/update_prompt.dart';
 import 'package:ironvault/features/settings/screens/privacy_policy_screen.dart';
@@ -17,14 +18,18 @@ class AboutScreen extends StatefulWidget {
 }
 
 class _AboutScreenState extends State<AboutScreen> {
+  static const _updateCacheInstalledVersionKey =
+      'update_cache_installed_version';
+
   String _version = '';
-  late Future<AppUpdateInfo?> _updateFuture;
+  late Future<AppUpdateCheckResult> _updateFuture;
+  final SecureStorage _storage = SecureStorage();
 
   @override
   void initState() {
     super.initState();
     _loadInfo();
-    _updateFuture = AppUpdateService().checkForUpdate();
+    _updateFuture = AppUpdateService().checkForUpdateResult();
   }
 
   Future<void> _loadInfo() async {
@@ -57,12 +62,54 @@ class _AboutScreenState extends State<AboutScreen> {
       },
     );
 
-    final info = await AppUpdateService().checkForUpdate();
+    final result = await AppUpdateService().checkForUpdateResult();
     if (!mounted) return;
     Navigator.pop(context);
 
+    if (!result.success) {
+      showDialog(
+        context: context,
+        builder: (_) {
+          return AlertDialog(
+            title: const Text('Update check failed'),
+            content: const Text(
+              'IronVault could not reach GitHub right now. Please try again later.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    final info = result.info;
+
+    final packageInfo = await PackageInfo.fromPlatform();
+    final installedVersion = packageInfo.buildNumber.trim().isEmpty
+        ? packageInfo.version.trim()
+        : '${packageInfo.version.trim()}+${packageInfo.buildNumber.trim()}';
+
+    await _storage.writeValue(
+      'last_update_check',
+      DateTime.now().toIso8601String(),
+    );
+    await _storage.writeValue('update_available', info != null ? 'true' : 'false');
+    await _storage.writeValue('update_version', info?.latestVersion ?? '');
+    await _storage.writeValue(
+      _updateCacheInstalledVersionKey,
+      installedVersion,
+    );
+    if (!mounted) return;
+
     setState(() {
-      _updateFuture = Future.value(info);
+      _updateFuture = Future.value(
+        AppUpdateCheckResult(info: info, success: true),
+      );
     });
 
     if (info == null) {
@@ -217,12 +264,15 @@ class _AboutScreenState extends State<AboutScreen> {
                   },
                 ),
                 const SizedBox(height: 10),
-                FutureBuilder<AppUpdateInfo?>(
+                FutureBuilder<AppUpdateCheckResult>(
                   future: _updateFuture,
                   builder: (context, snapshot) {
-                    final info = snapshot.data;
+                    final result = snapshot.data;
+                    final info = result?.info;
                     final status = snapshot.connectionState == ConnectionState.waiting
                         ? _statusChip(context, 'Checking...', false)
+                        : result?.success == false
+                        ? _statusChip(context, 'Check failed', false)
                         : _statusChip(
                             context,
                             info == null ? 'Up to date' : 'Update available',

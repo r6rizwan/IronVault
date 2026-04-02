@@ -17,10 +17,17 @@ class AppUpdateInfo {
   String get displayVersion => AppUpdateService.displayVersion(latestVersion);
 }
 
+class AppUpdateCheckResult {
+  final AppUpdateInfo? info;
+  final bool success;
+
+  const AppUpdateCheckResult({required this.info, required this.success});
+}
+
 class AppUpdateService {
   // Replace with your GitHub owner/repo
   static const String owner = 'r6rizwan';
-  static const String repo = 'Password-Manager';
+  static const String repo = 'IronVault';
   static const String apiBase = 'https://api.github.com/repos/$owner/$repo';
 
   static String displayVersion(String version) {
@@ -28,6 +35,11 @@ class AppUpdateService {
   }
 
   Future<AppUpdateInfo?> checkForUpdate() async {
+    final result = await checkForUpdateResult();
+    return result.success ? result.info : null;
+  }
+
+  Future<AppUpdateCheckResult> checkForUpdateResult() async {
     try {
       final info = await PackageInfo.fromPlatform();
       final current = _currentInstalledVersion(info);
@@ -40,7 +52,7 @@ class AppUpdateService {
           action: 'check_for_update',
           extras: {'status_code': res.statusCode},
         );
-        return null;
+        return const AppUpdateCheckResult(info: null, success: false);
       }
 
       final json = jsonDecode(res.body) as Map<String, dynamic>;
@@ -57,17 +69,22 @@ class AppUpdateService {
         }
       }
 
-      if (apkUrl == null || tag.isEmpty) return null;
+      if (apkUrl == null || tag.isEmpty) {
+        return const AppUpdateCheckResult(info: null, success: false);
+      }
 
       if (_isNewerVersion(tag, current)) {
-        return AppUpdateInfo(
-          latestVersion: tag,
-          apkUrl: apkUrl,
-          releaseNotes: notes,
+        return AppUpdateCheckResult(
+          info: AppUpdateInfo(
+            latestVersion: tag,
+            apkUrl: apkUrl,
+            releaseNotes: notes,
+          ),
+          success: true,
         );
       }
 
-      return null;
+      return const AppUpdateCheckResult(info: null, success: true);
     } catch (error, stackTrace) {
       await CrashReporter.captureException(
         error,
@@ -75,7 +92,7 @@ class AppUpdateService {
         feature: 'updates',
         action: 'check_for_update',
       );
-      return null;
+      return const AppUpdateCheckResult(info: null, success: false);
     }
   }
 

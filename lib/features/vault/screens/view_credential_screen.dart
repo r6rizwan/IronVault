@@ -229,6 +229,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     final newState = !(item["isFavorite"] == true);
 
     await repo.toggleFavorite(item["id"], newState);
+    ref.read(vaultRefreshProvider.notifier).state++;
 
     setState(() {
       item["isFavorite"] = newState;
@@ -542,6 +543,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
               if (confirm == true) {
                 final repo = ref.read(credentialRepoProvider);
                 await repo.deleteCredential(item["id"]);
+                ref.read(vaultRefreshProvider.notifier).state++;
 
                 if (mounted) Navigator.pop(context);
               }

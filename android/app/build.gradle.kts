@@ -35,6 +35,13 @@ android {
     }
 
     applicationVariants.all {
+        // This renames the Gradle artifact under:
+        // build/app/outputs/apk/release/
+        // Flutter also creates a separate normalized copy under:
+        // build/app/outputs/flutter-apk/app-release.apk
+        // That second copy is controlled by Flutter tooling, not Gradle,
+        // so it cannot be renamed here.
+        // For distribution, always use the Gradle artifact from outputs/apk/release/.
         outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             val cleanVersionName = versionName?.substringBefore('+') ?: "unknown"

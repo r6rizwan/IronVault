@@ -30,7 +30,6 @@ class AppReauthUtil {
             biometricOnly: true,
           );
           if (ok) return true;
-          return false;
         }
       }
     } on PlatformException catch (error) {
@@ -207,7 +206,6 @@ class _PinConfirmDialogState extends ConsumerState<_PinConfirmDialog> {
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.backspace) {
             if (_controllers[index].text.isEmpty && index > 0) {
-              _controllers[index - 1].clear();
               _focusNodes[index - 1].requestFocus();
               setState(() {});
             }

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/features/categories/providers/category_provider.dart';
 import '../../../core/constants/category_presets.dart';
 import '../../../domain/entities/vault_category.dart';
@@ -37,6 +38,18 @@ class _AddCategoryScreenState extends ConsumerState<AddCategoryScreen> {
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
+
+    final existingCategories = ref.read(categoryListProvider);
+    final duplicate = existingCategories.any((category) {
+      if (_isEditing && category.id == widget.category!.id) {
+        return false;
+      }
+      return category.name.toLowerCase() == name.toLowerCase();
+    });
+    if (duplicate) {
+      showAppToast(context, 'A category with this name already exists.');
+      return;
+    }
 
     if (_isEditing) {
       final existing = widget.category!;

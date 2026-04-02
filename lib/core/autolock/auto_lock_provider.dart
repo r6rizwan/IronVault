@@ -35,6 +35,11 @@ class AutoLockController extends Notifier<bool> {
       return false;
     }
     final storage = ref.read(secureStorageProvider);
+    final pinHash = await storage.readPinHash();
+    if (pinHash == null || pinHash.isEmpty) {
+      _resetPauseState();
+      return false;
+    }
     final lockOnSwitchValue = await storage.readValue('auto_lock_on_switch');
     final lockOnSwitchEnabled = (lockOnSwitchValue ?? 'true') == 'true';
     if (!lockOnSwitchEnabled) {

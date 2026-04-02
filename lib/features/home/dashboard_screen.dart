@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
 import 'package:ironvault/core/constants/item_types.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/features/add/screens/add_item_screen.dart';
@@ -463,10 +464,60 @@ class _RecentTile extends StatelessWidget {
 
   const _RecentTile({required this.item});
 
+  String _subtitleForItem(Map<String, dynamic> item) {
+    final fields = (item['fields'] as Map?)?.cast<String, dynamic>() ?? {};
+    if (item['type'] == 'password') {
+      return (fields['username'] ?? item['username'] ?? '').toString();
+    }
+    if (item['type'] == 'card') {
+      final number = (fields['number'] ?? '').toString().replaceAll(' ', '');
+      if (number.isEmpty) return 'Card ••••';
+      final last4 = number.length >= 4 ? number.substring(number.length - 4) : number;
+      return 'Card •••• $last4';
+    }
+    if (item['type'] == 'bank') {
+      final acct = (fields['account_number'] ?? '').toString().replaceAll(' ', '');
+      if (acct.isEmpty) return 'Bank account';
+      final last4 = acct.length >= 4 ? acct.substring(acct.length - 4) : acct;
+      return 'A/C •••• $last4';
+    }
+    if (item['type'] == 'document') {
+      final documentId = (fields['document_id'] ?? '').toString().trim();
+      if (documentId.isNotEmpty) {
+        return 'ID: $documentId';
+      }
+
+      final notes = (fields['notes'] ?? '').toString().trim();
+      if (notes.isNotEmpty) {
+        return notes;
+      }
+
+      final rawScans = (fields['scans'] ?? '').toString().trim();
+      if (rawScans.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(rawScans);
+          if (decoded is List) {
+            final count = decoded.length;
+            if (count > 0) {
+              return count == 1 ? '1 scanned page' : '$count scanned pages';
+            }
+          }
+        } catch (_) {}
+      }
+
+      return 'Saved document';
+    }
+    for (final v in fields.values) {
+      final text = v?.toString() ?? '';
+      if (text.trim().isNotEmpty) return text;
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = item['title'] ?? 'Untitled';
-    final subtitle = item['username'] ?? item['email'] ?? '';
+    final subtitle = _subtitleForItem(item);
     final typeKey = item['type'] ?? 'password';
     final typeDef = typeByKey(typeKey);
     final textMuted = AppThemeColors.textMuted(context);
@@ -515,11 +566,13 @@ class _RecentTile extends StatelessWidget {
                     title,
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(fontSize: 13, color: textMuted),
-                  ),
+                  if (subtitle.toString().trim().isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 13, color: textMuted),
+                    ),
+                  ],
                 ],
               ),
             ),

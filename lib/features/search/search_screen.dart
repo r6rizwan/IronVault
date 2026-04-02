@@ -1,5 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
@@ -56,6 +58,56 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _items = data;
       _loading = false;
     });
+  }
+
+  String _subtitleForItem(Map<String, dynamic> item) {
+    final fields = (item['fields'] as Map?)?.cast<String, dynamic>() ?? {};
+    if (item['type'] == 'password') {
+      return (fields['username'] ?? item['username'] ?? '').toString();
+    }
+    if (item['type'] == 'card') {
+      final number = (fields['number'] ?? '').toString().replaceAll(' ', '');
+      if (number.isEmpty) return 'Card ••••';
+      final last4 = number.length >= 4 ? number.substring(number.length - 4) : number;
+      return 'Card •••• $last4';
+    }
+    if (item['type'] == 'bank') {
+      final acct = (fields['account_number'] ?? '').toString().replaceAll(' ', '');
+      if (acct.isEmpty) return 'Bank account';
+      final last4 = acct.length >= 4 ? acct.substring(acct.length - 4) : acct;
+      return 'A/C •••• $last4';
+    }
+    if (item['type'] == 'document') {
+      final documentId = (fields['document_id'] ?? '').toString().trim();
+      if (documentId.isNotEmpty) {
+        return 'ID: $documentId';
+      }
+
+      final notes = (fields['notes'] ?? '').toString().trim();
+      if (notes.isNotEmpty) {
+        return notes;
+      }
+
+      final rawScans = (fields['scans'] ?? '').toString().trim();
+      if (rawScans.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(rawScans);
+          if (decoded is List) {
+            final count = decoded.length;
+            if (count > 0) {
+              return count == 1 ? '1 scanned page' : '$count scanned pages';
+            }
+          }
+        } catch (_) {}
+      }
+
+      return 'Saved document';
+    }
+    for (final v in fields.values) {
+      final text = v?.toString() ?? '';
+      if (text.trim().isNotEmpty) return text;
+    }
+    return '';
   }
 
   @override
@@ -182,7 +234,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
             if (_loading)
               const _SearchLoadingState()
-            else if (_query.isEmpty)
+            else if (_query.isEmpty &&
+                _typeFilter == null &&
+                _categoryFilter == null &&
+                !_favoritesOnly)
               _buildEmptyState()
             else
               _buildSearchResults(isDark, results),
@@ -255,13 +310,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 const SizedBox(width: 16),
 
                 Expanded(
-                  child: Text(
-                    item["title"] ?? "Untitled",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item["title"] ?? "Untitled",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      if (_subtitleForItem(item).trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _subtitleForItem(item),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: textMuted,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
 

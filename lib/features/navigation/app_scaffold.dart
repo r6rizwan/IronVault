@@ -8,12 +8,15 @@ import '../categories/categories_screen.dart';
 import 'package:ironvault/core/update/app_update_service.dart';
 import 'package:ironvault/core/update/update_prompt.dart';
 import 'package:ironvault/core/secure_storage.dart';
+import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/navigation/global_nav.dart';
 import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
+import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
 
 enum AppPage { home, vault, search, settings }
 
@@ -34,6 +37,54 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   bool _updateAvailable = false;
   String? _updateVersion;
   bool _checkingUpdate = false;
+  static const _updateCacheInstalledVersionKey =
+      'update_cache_installed_version';
+
+  Future<_PendingRecoveryKeyStatus> _readPendingRecoveryKeyStatus() async {
+    final confirmed = await RecoveryKeyUtil.isConfirmed(_storage);
+    if (confirmed) {
+      return const _PendingRecoveryKeyStatus();
+    }
+    final key = await RecoveryKeyUtil.readPendingKey(_storage);
+    final hasPendingState = await RecoveryKeyUtil.hasPendingState(_storage);
+    return _PendingRecoveryKeyStatus(
+      key: key,
+      hasPendingState: hasPendingState,
+      unreadable: hasPendingState && (key == null || key.isEmpty),
+    );
+  }
+
+  Future<void> _openPendingRecoveryKey(BuildContext context, String key) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RecoveryKeyScreen(
+          recoveryKey: key,
+          doneLabel: 'I have saved it',
+          onDone: () => Navigator.pop(context),
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _showPendingRecoveryKeyIssue(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Recovery Key Needs Attention'),
+        content: const Text(
+          'IronVault knows there is a recovery key reminder pending, but it cannot be opened from the current app state. Please verify your vault access and create a new recovery key if needed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -50,11 +101,27 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     if (_checkingUpdate) return;
     _checkingUpdate = true;
 
+    final packageInfo = await PackageInfo.fromPlatform();
+    final installedVersion = packageInfo.buildNumber.trim().isEmpty
+        ? packageInfo.version.trim()
+        : '${packageInfo.version.trim()}+${packageInfo.buildNumber.trim()}';
     final last = await _storage.readValue('last_update_check');
     final cachedAvailable = await _storage.readValue('update_available');
     final cachedVersion = await _storage.readValue('update_version');
+    final cachedForInstalledVersion = await _storage.readValue(
+      _updateCacheInstalledVersionKey,
+    );
 
-    if (last != null) {
+    if (cachedForInstalledVersion != installedVersion) {
+      _updateAvailable = false;
+      _updateVersion = null;
+      await _storage.writeValue('update_available', 'false');
+      await _storage.writeValue('update_version', '');
+      await _storage.writeValue(
+        _updateCacheInstalledVersionKey,
+        installedVersion,
+      );
+    } else if (last != null) {
       final lastTime = DateTime.tryParse(last);
       if (lastTime != null &&
           DateTime.now().difference(lastTime).inHours < 24) {
@@ -66,9 +133,14 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       }
     }
 
-    final info = await AppUpdateService().checkForUpdate();
-    _updateAvailable = info != null;
-    _updateVersion = info?.latestVersion;
+    final result = await AppUpdateService().checkForUpdateResult();
+    if (!result.success) {
+      _checkingUpdate = false;
+      return;
+    }
+
+    _updateAvailable = result.info != null;
+    _updateVersion = result.info?.latestVersion;
 
     await _storage.writeValue(
       'last_update_check',
@@ -79,6 +151,10 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       _updateAvailable ? 'true' : 'false',
     );
     await _storage.writeValue('update_version', _updateVersion ?? '');
+    await _storage.writeValue(
+      _updateCacheInstalledVersionKey,
+      installedVersion,
+    );
 
     if (mounted) setState(() {});
     _checkingUpdate = false;
@@ -159,6 +235,30 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     }
     if (page == AppPage.home) {
       return [
+        FutureBuilder<_PendingRecoveryKeyStatus>(
+          future: _readPendingRecoveryKeyStatus(),
+          builder: (context, snapshot) {
+            final status = snapshot.data;
+            if (status == null || !status.hasPendingState) {
+              return const SizedBox.shrink();
+            }
+            return IconButton(
+              icon: const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.amber,
+              ),
+              tooltip: 'Recovery key not confirmed yet',
+              onPressed: () {
+                final pendingKey = status.key;
+                if (pendingKey != null && pendingKey.isNotEmpty) {
+                  _openPendingRecoveryKey(context, pendingKey);
+                  return;
+                }
+                _showPendingRecoveryKeyIssue(context);
+              },
+            );
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.lock_outline),
           tooltip: "Lock now",
@@ -194,6 +294,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -220,8 +321,17 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                 icon: const Icon(Icons.system_update_alt),
                 onPressed: () async {
                   final ctx = context;
-                  final info = await AppUpdateService().checkForUpdate();
+                  final result = await AppUpdateService().checkForUpdateResult();
                   if (!mounted || !ctx.mounted) return;
+                  if (!result.success) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text('Could not check for updates right now.'),
+                      ),
+                    );
+                    return;
+                  }
+                  final info = result.info;
                   if (info != null) {
                     _updateAvailable = true;
                     _updateVersion = info.latestVersion;
@@ -233,6 +343,14 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                     await _storage.writeValue(
                       'update_version',
                       info.latestVersion,
+                    );
+                    final packageInfo = await PackageInfo.fromPlatform();
+                    final installedVersion = packageInfo.buildNumber.trim().isEmpty
+                        ? packageInfo.version.trim()
+                        : '${packageInfo.version.trim()}+${packageInfo.buildNumber.trim()}';
+                    await _storage.writeValue(
+                      _updateCacheInstalledVersionKey,
+                      installedVersion,
                     );
                     if (mounted) setState(() {});
                     if (!ctx.mounted) return;
@@ -246,6 +364,14 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                     );
                     await _storage.writeValue('update_available', 'false');
                     await _storage.writeValue('update_version', '');
+                    final packageInfo = await PackageInfo.fromPlatform();
+                    final installedVersion = packageInfo.buildNumber.trim().isEmpty
+                        ? packageInfo.version.trim()
+                        : '${packageInfo.version.trim()}+${packageInfo.buildNumber.trim()}';
+                    await _storage.writeValue(
+                      _updateCacheInstalledVersionKey,
+                      installedVersion,
+                    );
                     if (mounted) setState(() {});
                   }
                 },
@@ -261,18 +387,21 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
             const SettingsScreen(showAppBar: false),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          heroTag: 'global_add_fab',
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          elevation: 6,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddItemScreen()),
-            );
-          },
-          child: const Icon(Icons.add, size: 26),
-        ),
+        floatingActionButton: keyboardOpen
+            ? null
+            : FloatingActionButton(
+                heroTag: null,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+                elevation: 6,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddItemScreen()),
+                  );
+                },
+                child: const Icon(Icons.add, size: 26),
+              ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: SafeArea(
           top: false,
@@ -363,6 +492,18 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       _exitToast = null;
     });
   }
+}
+
+class _PendingRecoveryKeyStatus {
+  final String? key;
+  final bool hasPendingState;
+  final bool unreadable;
+
+  const _PendingRecoveryKeyStatus({
+    this.key,
+    this.hasPendingState = false,
+    this.unreadable = false,
+  });
 }
 
 class _NavItem extends StatelessWidget {

@@ -58,7 +58,8 @@ class CategoriesScreen extends ConsumerWidget {
             ? EmptyState(
                 icon: Icons.folder_outlined,
                 title: "No categories yet",
-                subtitle: "Create one to group your passwords.",
+                subtitle:
+                    "Create one to group passwords, notes, cards, bank details, and documents.",
                 action: TextButton(
                   onPressed: () {
                     Navigator.push(

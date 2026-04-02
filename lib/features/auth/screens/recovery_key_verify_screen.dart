@@ -58,6 +58,13 @@ class _RecoveryKeyVerifyScreenState
             const SizedBox(height: 10),
             TextField(
               controller: _controller,
+              onChanged: (_) {
+                if (_error != null) {
+                  setState(() => _error = null);
+                } else {
+                  setState(() {});
+                }
+              },
               decoration: InputDecoration(
                 hintText: 'XXXX-XXXX-XXXX-XXXX',
                 errorText: _error,
@@ -68,7 +75,7 @@ class _RecoveryKeyVerifyScreenState
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _verify,
+                onPressed: _controller.text.trim().isEmpty ? null : _verify,
                 child: const Text('Continue'),
               ),
             ),

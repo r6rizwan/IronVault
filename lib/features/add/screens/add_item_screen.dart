@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
+import 'package:uuid/uuid.dart';
 
 class AddItemScreen extends ConsumerStatefulWidget {
   final String? initialType;
@@ -30,6 +31,7 @@ class AddItemScreen extends ConsumerStatefulWidget {
 
 class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   static const _draftStorageKey = 'add_item_draft_v1';
+  static const _uuid = Uuid();
 
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
@@ -465,7 +467,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   }
 
   Future<String?> _compressAndMove(String inputPath, String dirPath) async {
-    final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}.jpg';
     final targetPath = '$dirPath/$fileName';
     try {
       final result = await FlutterImageCompress.compressAndGetFile(

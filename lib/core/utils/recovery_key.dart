@@ -51,6 +51,12 @@ class RecoveryKeyUtil {
     }
   }
 
+  static Future<bool> hasPendingState(SecureStorage storage) async {
+    final encrypted = await storage.readValue(_pendingRecoveryKeyKey);
+    if (encrypted == null || encrypted.isEmpty) return false;
+    return !await isConfirmed(storage);
+  }
+
   static Future<bool> isConfirmed(SecureStorage storage) async {
     return (await storage.readValue(_recoveryKeyConfirmedKey) ?? 'true') ==
         'true';

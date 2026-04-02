@@ -38,6 +38,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
 
   bool _loading = false;
   bool _oldPinVerified = false;
+  String? _verifiedOldPinValue;
 
   void _showMessage(String text) {
     showAppToast(context, text);
@@ -96,12 +97,16 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     setState(() {
       _loading = false;
       _oldPinVerified = true;
+      _verifiedOldPinValue = oldPin;
     });
+    for (final c in _oldPin) {
+      c.clear();
+    }
     _newNodes.first.requestFocus();
   }
 
   Future<void> _changePin() async {
-    final oldPin = _collect(_oldPin);
+    final oldPin = _verifiedOldPinValue ?? _collect(_oldPin);
     final newPin = _collect(_newPin);
     final confirmPin = _collect(_confirmPin);
 
@@ -135,6 +140,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
       }
       setState(() => _loading = false);
       _oldPinVerified = false;
+      _verifiedOldPinValue = null;
       _showMessage("Incorrect old PIN.");
       _oldNodes.first.requestFocus();
       return;
@@ -145,6 +151,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     await storage.writePinHash(PinKdf.hashPin(newPin));
 
     setState(() => _loading = false);
+    _verifiedOldPinValue = null;
 
     _showMessage("PIN updated successfully!");
 
@@ -206,7 +213,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
   Widget _otpRow(
     List<TextEditingController> controllers,
     List<FocusNode> nodes,
-    {bool readOnly = false}
+    {bool readOnly = false, FocusNode? nextGroupFirstNode}
   ) {
     return Wrap(
       alignment: WrapAlignment.center,
@@ -220,11 +227,12 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
           onNext: () {
             if (i < pinLength - 1) {
               nodes[i + 1].requestFocus();
+            } else if (nextGroupFirstNode != null) {
+              nextGroupFirstNode.requestFocus();
             }
           },
           onBack: () {
             if (i > 0) {
-              controllers[i - 1].clear();
               nodes[i - 1].requestFocus();
             }
           },
@@ -320,36 +328,19 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "Old PIN",
-                        style: Theme.of(context).textTheme.labelLarge,
+                    if (!_oldPinVerified) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Old PIN",
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _otpRow(_oldPin, _oldNodes, readOnly: _oldPinVerified),
+                      const SizedBox(height: 12),
+                      _otpRow(_oldPin, _oldNodes),
+                    ],
 
                     if (_oldPinVerified) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.verified_outlined,
-                            size: 16,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            "Current PIN verified",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
                       spacing,
 
                       Align(
@@ -358,9 +349,13 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                           "New PIN",
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      _otpRow(_newPin, _newNodes),
+                        ),
+                        const SizedBox(height: 12),
+                        _otpRow(
+                          _newPin,
+                          _newNodes,
+                          nextGroupFirstNode: _confirmNodes.first,
+                        ),
 
                       spacing,
 
