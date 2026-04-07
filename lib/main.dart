@@ -6,7 +6,6 @@ import 'package:ironvault/core/services/crash_reporter.dart';
 import 'core/autolock/auto_lock_provider.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/theme/app_theme.dart';
-import 'core/utils/encryption_util.dart';
 import 'core/providers.dart';
 import 'core/theme/app_tokens.dart';
 import 'features/auth/screens/auth_choice_screen.dart';
@@ -102,6 +101,12 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
           statusBarColor: isDark ? AppColorsDark.bg : AppColorsLight.bg,
           statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
           statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+          systemNavigationBarColor:
+              isDark ? AppColorsDark.bg : AppColorsLight.bg,
+          systemNavigationBarIconBrightness:
+              isDark ? Brightness.light : Brightness.dark,
+          systemNavigationBarDividerColor:
+              isDark ? AppColorsDark.bg : AppColorsLight.bg,
         );
         SystemChrome.setSystemUIOverlayStyle(style);
         return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -152,11 +157,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     final pinHash = await storage.readPinHash();
 
     if (masterKey == null && pinHash == null) {
-      final newKey = EncryptionUtil.generateKeyBase64();
-      if (masterKey == null) {
-        await storage.writeMasterKey(newKey);
-      }
-
       navKey.currentState?.pushReplacement(
         MaterialPageRoute(builder: (_) => const SetupMasterPinScreen()),
       );

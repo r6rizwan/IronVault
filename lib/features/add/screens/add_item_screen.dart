@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
+import 'package:ironvault/core/widgets/blocking_loading_overlay.dart';
 import 'package:uuid/uuid.dart';
 
 class AddItemScreen extends ConsumerStatefulWidget {
@@ -1117,19 +1118,24 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
             ),
           ),
         ),
-        body: SafeArea(
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () => FocusScope.of(context).unfocus(),
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
-              child: Form(
-                key: _formKey,
-                child: AutofillGroup(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+        body: BlockingLoadingOverlay(
+          isLoading: _saving,
+          message: widget.existingItem == null
+              ? 'Saving your item...'
+              : 'Saving your changes...',
+          child: SafeArea(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
+                child: Form(
+                  key: _formKey,
+                  child: AutofillGroup(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                       _dropdownField(
                         label: 'Type',
                         valueText: type.label,
@@ -1202,7 +1208,8 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                       }),
 
                       const SizedBox(height: 6),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

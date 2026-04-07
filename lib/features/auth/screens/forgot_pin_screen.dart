@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
-import 'package:ironvault/core/utils/encryption_util.dart';
 import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/widgets/blocking_loading_overlay.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_verify_screen.dart';
 import 'package:ironvault/features/auth/screens/setup_pin_screen.dart';
 
-class ForgotPinScreen extends ConsumerWidget {
+class ForgotPinScreen extends ConsumerStatefulWidget {
   const ForgotPinScreen({super.key});
 
+  @override
+  ConsumerState<ForgotPinScreen> createState() => _ForgotPinScreenState();
+}
+
+class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
   static const _failedPinAttemptsKey = 'failed_pin_attempts';
   static const _pinCooldownUntilKey = 'pin_cooldown_until';
 
-  Future<void> _resetVault(BuildContext context, WidgetRef ref) async {
+  bool _resetting = false;
+
+  Future<void> _resetVault() async {
+    if (_resetting) return;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -34,7 +43,9 @@ class ForgotPinScreen extends ConsumerWidget {
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
+
+    setState(() => _resetting = true);
 
     final storage = ref.read(secureStorageProvider);
     final db = ref.read(dbProvider);
@@ -45,20 +56,28 @@ class ForgotPinScreen extends ConsumerWidget {
     await RecoveryKeyUtil.clearPendingState(storage);
     await storage.deleteValue(_failedPinAttemptsKey);
     await storage.deleteValue(_pinCooldownUntilKey);
-    await storage.writeMasterKey(EncryptionUtil.generateKeyBase64());
 
-    if (context.mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const SetupMasterPinScreen()),
-        (_) => false,
-      );
-    }
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const SetupMasterPinScreen()),
+      (_) => false,
+    );
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = AppThemeColors.text(context);
     final textMuted = AppThemeColors.textMuted(context);
+    final bgGradient = LinearGradient(
+      colors: isDark
+          ? [const Color(0xFF0B1020), const Color(0xFF111D38)]
+          : [const Color(0xFFEFF4FF), const Color(0xFFF8FBFF)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    final size = MediaQuery.of(context).size;
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
@@ -66,41 +85,79 @@ class ForgotPinScreen extends ConsumerWidget {
         Navigator.pop(context);
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Forgot PIN')),
-        body: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          title: const Text('Forgot PIN'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          foregroundColor: textColor,
+        ),
+        body: BlockingLoadingOverlay(
+          isLoading: _resetting,
+          message: 'Resetting your vault...',
+          child: Stack(
             children: [
-              const Text(
-                'Choose a recovery option',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              Container(decoration: BoxDecoration(gradient: bgGradient)),
+              Positioned(
+                top: -90,
+                right: -40,
+                child: _GlowOrb(
+                  size: size.width * 0.58,
+                  color: const Color(0xFF7AA8FF).withValues(alpha: 0.30),
+                ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'You can reset using a recovery key or wipe the vault.',
-                style: TextStyle(fontSize: 12, color: textMuted),
+              Positioned(
+                bottom: -130,
+                left: -70,
+                child: _GlowOrb(
+                  size: size.width * 0.65,
+                  color: const Color(0xFF38BDF8).withValues(alpha: 0.18),
+                ),
               ),
-              const SizedBox(height: 16),
-              _OptionCard(
-                title: 'Use Recovery Key',
-                subtitle: 'Reset PIN without losing data',
-                icon: Icons.vpn_key_outlined,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const RecoveryKeyVerifyScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              _OptionCard(
-                title: 'Reset Vault (Delete Data)',
-                subtitle: 'Clear all vault data and set a new PIN',
-                icon: Icons.delete_outline,
-                onTap: () => _resetVault(context, ref),
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      Text(
+                        'Choose a recovery option',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'You can reset using a recovery key or wipe the vault.',
+                        style: TextStyle(fontSize: 12, color: textMuted),
+                      ),
+                      const SizedBox(height: 16),
+                      _OptionCard(
+                        title: 'Use Recovery Key',
+                        subtitle: 'Reset PIN without losing data',
+                        icon: Icons.vpn_key_outlined,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RecoveryKeyVerifyScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _OptionCard(
+                        title: 'Reset Vault (Delete Data)',
+                        subtitle: 'Clear all vault data and set a new PIN',
+                        icon: Icons.delete_outline,
+                        onTap: _resetVault,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -177,6 +234,32 @@ class _OptionCard extends StatelessWidget {
             ),
             const Icon(Icons.chevron_right),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _GlowOrb({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              color,
+              color.withValues(alpha: 0),
+            ],
+          ),
         ),
       ),
     );

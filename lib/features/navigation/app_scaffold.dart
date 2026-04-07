@@ -34,6 +34,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   final GlobalKey<CredentialListScreenState> _vaultKey =
       GlobalKey<CredentialListScreenState>();
   final SecureStorage _storage = SecureStorage();
+  final AppUpdateService _updateService = AppUpdateService();
   bool _updateAvailable = false;
   String? _updateVersion;
   bool _checkingUpdate = false;
@@ -133,7 +134,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       }
     }
 
-    final result = await AppUpdateService().checkForUpdateResult();
+    final result = await _updateService.checkForUpdateResult();
     if (!result.success) {
       _checkingUpdate = false;
       return;
@@ -295,6 +296,10 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   @override
   Widget build(BuildContext context) {
     final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final navBorderColor = isDark
+        ? Colors.white.withValues(alpha: 0.14)
+        : const Color(0xFFBFD0F2).withValues(alpha: 0.85);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -321,12 +326,29 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                 icon: const Icon(Icons.system_update_alt),
                 onPressed: () async {
                   final ctx = context;
-                  final result = await AppUpdateService().checkForUpdateResult();
+                  final hasConnection = await _updateService
+                      .hasNetworkConnection();
+                  if (!mounted || !ctx.mounted) return;
+                  if (!hasConnection) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'No internet connection. Connect to Wi-Fi or mobile data and try again.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                  final result = await _updateService.checkForUpdateResult();
                   if (!mounted || !ctx.mounted) return;
                   if (!result.success) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(
-                        content: Text('Could not check for updates right now.'),
+                      SnackBar(
+                        content: Text(
+                          result.offline
+                              ? 'No internet connection. Connect to Wi-Fi or mobile data and try again.'
+                              : 'Could not check for updates right now.',
+                        ),
                       ),
                     );
                     return;
@@ -345,7 +367,8 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                       info.latestVersion,
                     );
                     final packageInfo = await PackageInfo.fromPlatform();
-                    final installedVersion = packageInfo.buildNumber.trim().isEmpty
+                    final installedVersion =
+                        packageInfo.buildNumber.trim().isEmpty
                         ? packageInfo.version.trim()
                         : '${packageInfo.version.trim()}+${packageInfo.buildNumber.trim()}';
                     await _storage.writeValue(
@@ -365,7 +388,8 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                     await _storage.writeValue('update_available', 'false');
                     await _storage.writeValue('update_version', '');
                     final packageInfo = await PackageInfo.fromPlatform();
-                    final installedVersion = packageInfo.buildNumber.trim().isEmpty
+                    final installedVersion =
+                        packageInfo.buildNumber.trim().isEmpty
                         ? packageInfo.version.trim()
                         : '${packageInfo.version.trim()}+${packageInfo.buildNumber.trim()}';
                     await _storage.writeValue(
@@ -417,13 +441,9 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).cardColor.withValues(alpha: 0.82),
+                    color: Theme.of(context).cardColor.withValues(alpha: 0.82),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
+                    border: Border.all(color: navBorderColor, width: 2.1),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.08),
@@ -435,8 +455,16 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _navItem(icon: Icons.home_rounded, label: 'Home', index: 0),
-                      _navItem(icon: Icons.lock_rounded, label: 'Vault', index: 1),
+                      _navItem(
+                        icon: Icons.home_rounded,
+                        label: 'Home',
+                        index: 0,
+                      ),
+                      _navItem(
+                        icon: Icons.lock_rounded,
+                        label: 'Vault',
+                        index: 1,
+                      ),
                       const SizedBox(width: 46),
                       _navItem(
                         icon: Icons.search_rounded,

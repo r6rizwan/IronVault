@@ -199,7 +199,7 @@ class _PinConfirmDialogState extends ConsumerState<_PinConfirmDialog> {
     final filled = _controllers[index].text.isNotEmpty;
 
     return SizedBox(
-      width: 46,
+      width: 54,
       child: KeyboardListener(
         focusNode: _keyboardNodes[index],
         onKeyEvent: (event) {
@@ -245,7 +245,7 @@ class _PinConfirmDialogState extends ConsumerState<_PinConfirmDialog> {
               borderRadius: BorderRadius.all(Radius.circular(12)),
               borderSide: BorderSide(color: Colors.blueAccent, width: 1.8),
             ),
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(vertical: 18),
           ),
           cursorColor: Colors.blueAccent,
           onChanged: (_) => _onDigitChanged(index),
@@ -256,49 +256,76 @@ class _PinConfirmDialogState extends ConsumerState<_PinConfirmDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Confirm with PIN'),
-      content: SizedBox(
-        width: 260,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Enter your 4-digit PIN to continue.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_pinLength * 2 - 1, (i) {
-                if (i.isOdd) return const SizedBox(width: 8);
-                return _pinBox(i ~/ 2);
-              }),
-            ),
-            if (_error != null) ...[
+    final dialogWidth = MediaQuery.of(context).size.width.clamp(0.0, 380.0);
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: dialogWidth,
+          minWidth: dialogWidth < 320 ? dialogWidth : 320,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Confirm with PIN',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 10),
-              Text(
-                _error!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: 12,
+              const Text(
+                'Enter your 4-digit PIN to continue.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(_pinLength * 2 - 1, (i) {
+                      if (i.isOdd) return const SizedBox(width: 10);
+                      return _pinBox(i ~/ 2);
+                    }),
+                  ),
                 ),
-                textAlign: TextAlign.center,
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _error!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _submitting
+                        ? null
+                        : () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed:
+                        _submitting || _pin.length < _pinLength ? null : _confirm,
+                    child: Text(_submitting ? 'Checking...' : 'Confirm'),
+                  ),
+                ],
               ),
             ],
-          ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _submitting ? null : () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: _submitting || _pin.length < _pinLength ? null : _confirm,
-          child: Text(_submitting ? 'Checking...' : 'Confirm'),
-        ),
-      ],
     );
   }
 }

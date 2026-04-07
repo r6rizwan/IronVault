@@ -14,7 +14,6 @@ import 'change_pin_screen.dart';
 import 'package:ironvault/features/auth/screens/login_screen.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:ironvault/core/utils/app_reauth_util.dart';
-import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
 import 'package:ironvault/core/backup/backup_service.dart';
 import 'package:ironvault/core/backup/csv_import_service.dart';
@@ -650,17 +649,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (!confirmed || !mounted) return;
 
-    final storage = ref.read(secureStorageProvider);
-    final key = RecoveryKeyUtil.generate();
-    await storage.writeRecoveryKeyHash(RecoveryKeyUtil.hash(key));
-    await RecoveryKeyUtil.storePendingKey(storage, key);
-    if (!mounted) return;
-
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => RecoveryKeyScreen(
-          recoveryKey: key,
+          allowManualGenerate: true,
+          hasExistingKey: _hasRecoveryKey,
           trustedForReveal: true,
           doneLabel: 'Done',
           onDone: () => Navigator.pop(context),

@@ -24,12 +24,13 @@ class _AboutScreenState extends State<AboutScreen> {
   String _version = '';
   late Future<AppUpdateCheckResult> _updateFuture;
   final SecureStorage _storage = SecureStorage();
+  final AppUpdateService _updateService = AppUpdateService();
 
   @override
   void initState() {
     super.initState();
     _loadInfo();
-    _updateFuture = AppUpdateService().checkForUpdateResult();
+    _updateFuture = _updateService.checkForUpdateResult();
   }
 
   Future<void> _loadInfo() async {
@@ -40,6 +41,29 @@ class _AboutScreenState extends State<AboutScreen> {
 
   Future<void> _checkForUpdates() async {
     if (!mounted) return;
+
+    final hasConnection = await _updateService.hasNetworkConnection();
+    if (!mounted) return;
+    if (!hasConnection) {
+      showDialog(
+        context: context,
+        builder: (_) {
+          return AlertDialog(
+            title: const Text('No internet connection'),
+            content: const Text(
+              'Connect to Wi-Fi or mobile data and try checking for updates again.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
 
     showDialog(
       context: context,
@@ -62,19 +86,22 @@ class _AboutScreenState extends State<AboutScreen> {
       },
     );
 
-    final result = await AppUpdateService().checkForUpdateResult();
+    final result = await _updateService.checkForUpdateResult();
     if (!mounted) return;
     Navigator.pop(context);
 
     if (!result.success) {
+      final failureMessage = result.offline
+          ? 'Connect to Wi-Fi or mobile data and try again.'
+          : 'IronVault could not reach GitHub right now. Please try again later.';
       showDialog(
         context: context,
         builder: (_) {
           return AlertDialog(
-            title: const Text('Update check failed'),
-            content: const Text(
-              'IronVault could not reach GitHub right now. Please try again later.',
+            title: Text(
+              result.offline ? 'No internet connection' : 'Update check failed',
             ),
+            content: Text(failureMessage),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

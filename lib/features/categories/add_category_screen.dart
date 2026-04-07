@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
+import 'package:ironvault/core/widgets/blocking_loading_overlay.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/features/categories/providers/category_provider.dart';
 import '../../../core/constants/category_presets.dart';
@@ -134,9 +135,12 @@ class _AddCategoryScreenState extends ConsumerState<AddCategoryScreen> {
     final textMuted = Theme.of(context).textTheme.bodySmall?.color;
     return Scaffold(
       appBar: AppBar(title: Text(_isEditing ? "Edit Category" : "Add Category")),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
+      body: BlockingLoadingOverlay(
+        isLoading: _saving,
+        message: _isEditing ? 'Updating category...' : 'Saving category...',
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
           _sectionCard(
             context,
             child: Row(
@@ -260,7 +264,8 @@ class _AddCategoryScreenState extends ConsumerState<AddCategoryScreen> {
                   : Text(_isEditing ? "Update Category" : "Save Category"),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

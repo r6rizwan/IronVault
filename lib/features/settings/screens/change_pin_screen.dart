@@ -9,6 +9,7 @@ import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/utils/pin_kdf.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
+import 'package:ironvault/core/widgets/blocking_loading_overlay.dart';
 
 class ChangePinScreen extends ConsumerStatefulWidget {
   const ChangePinScreen({super.key});
@@ -272,35 +273,62 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     final textMuted = AppThemeColors.textMuted(context);
     final bgGradient = LinearGradient(
       colors: isDark
-          ? [const Color(0xFF0B0F1A), const Color(0xFF121826)]
-          : [const Color(0xFFF7FAFF), const Color(0xFFEAF2FF)],
+          ? [const Color(0xFF0B1020), const Color(0xFF111D38)]
+          : [const Color(0xFFEFF4FF), const Color(0xFFF8FBFF)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Change Master PIN")),
-      body: Container(
-        decoration: BoxDecoration(gradient: bgGradient),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text("Change Master PIN"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: textColor,
+      ),
+      body: BlockingLoadingOverlay(
+        isLoading: _loading,
+        message: _oldPinVerified ? 'Updating your PIN...' : 'Verifying your PIN...',
+        child: Stack(
+          children: [
+            Container(decoration: BoxDecoration(gradient: bgGradient)),
+            Positioned(
+              top: -90,
+              right: -40,
+              child: _GlowOrb(
+                size: size.width * 0.58,
+                color: const Color(0xFF7AA8FF).withValues(alpha: 0.30),
+              ),
+            ),
+            Positioned(
+              bottom: -130,
+              left: -70,
+              child: _GlowOrb(
+                size: size.width * 0.65,
+                color: const Color(0xFF38BDF8).withValues(alpha: 0.18),
+              ),
+            ),
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
+                  child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
                     CircleAvatar(
                       radius: 34,
                       backgroundColor:
@@ -398,10 +426,35 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                               ),
                       ),
                     ),
-                  ],
+                    ],
+                  ),
+                  ),
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _GlowOrb({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [color, color.withValues(alpha: 0)],
           ),
         ),
       ),

@@ -247,8 +247,11 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final categoryFilter = widget.categoryFilter?.trim();
+    final hasCategoryFilter =
+        categoryFilter != null && categoryFilter.isNotEmpty;
     final filteredItems = _items.where((item) {
-      final category = widget.categoryFilter;
+      final category = categoryFilter;
       if (category != null && category.isNotEmpty) {
         if ((item["category"] ?? "").toString().toLowerCase() !=
             category.toLowerCase()) {
@@ -262,20 +265,26 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
       appBar: widget.showAppBar
           ? AppBar(
               elevation: 0,
-              title: const Text("Vault"),
+              title: Text(hasCategoryFilter ? categoryFilter : "Vault"),
               actions: [
                 IconButton(
-                  icon: const Icon(Icons.folder),
-                  tooltip: "Categories",
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CategoriesScreen(),
-                      ),
-                    );
-                  },
+                  icon: const Icon(Icons.swap_vert_rounded),
+                  tooltip: "Sort",
+                  onPressed: _openSortSheet,
                 ),
+                if (!hasCategoryFilter)
+                  IconButton(
+                    icon: const Icon(Icons.folder),
+                    tooltip: "Categories",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CategoriesScreen(),
+                        ),
+                      );
+                    },
+                  ),
               ],
             )
           : null,

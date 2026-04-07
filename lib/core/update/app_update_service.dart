@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ironvault/core/services/crash_reporter.dart';
@@ -20,8 +22,13 @@ class AppUpdateInfo {
 class AppUpdateCheckResult {
   final AppUpdateInfo? info;
   final bool success;
+  final bool offline;
 
-  const AppUpdateCheckResult({required this.info, required this.success});
+  const AppUpdateCheckResult({
+    required this.info,
+    required this.success,
+    this.offline = false,
+  });
 }
 
 class AppUpdateService {
@@ -29,6 +36,7 @@ class AppUpdateService {
   static const String owner = 'r6rizwan';
   static const String repo = 'IronVault';
   static const String apiBase = 'https://api.github.com/repos/$owner/$repo';
+  static const Duration _requestTimeout = Duration(seconds: 12);
 
   static String displayVersion(String version) {
     return version.trim().split('+').first;
@@ -39,12 +47,30 @@ class AppUpdateService {
     return result.success ? result.info : null;
   }
 
+  Future<bool> hasNetworkConnection() async {
+    final connectivityResults = await Connectivity().checkConnectivity();
+    return connectivityResults.any(
+      (result) => result != ConnectivityResult.none,
+    );
+  }
+
   Future<AppUpdateCheckResult> checkForUpdateResult() async {
     try {
+      final hasConnection = await hasNetworkConnection();
+      if (!hasConnection) {
+        return const AppUpdateCheckResult(
+          info: null,
+          success: false,
+          offline: true,
+        );
+      }
+
       final info = await PackageInfo.fromPlatform();
       final current = _currentInstalledVersion(info);
 
-      final res = await http.get(Uri.parse('$apiBase/releases/latest'));
+      final res = await http
+          .get(Uri.parse('$apiBase/releases/latest'))
+          .timeout(_requestTimeout);
       if (res.statusCode != 200) {
         await CrashReporter.captureMessage(
           'Update check returned non-200 status',
@@ -85,6 +111,15 @@ class AppUpdateService {
       }
 
       return const AppUpdateCheckResult(info: null, success: true);
+    } on TimeoutException catch (error, stackTrace) {
+      await CrashReporter.captureException(
+        error,
+        stackTrace,
+        feature: 'updates',
+        action: 'check_for_update',
+        extras: {'timeout_seconds': _requestTimeout.inSeconds},
+      );
+      return const AppUpdateCheckResult(info: null, success: false);
     } catch (error, stackTrace) {
       await CrashReporter.captureException(
         error,
