@@ -91,6 +91,10 @@ const List<ItemTypeDefinition> itemTypes = [
     icon: Icons.credit_card,
     fields: [
       FieldDefinition(
+        key: 'cardholder_name',
+        label: 'Cardholder Name',
+      ),
+      FieldDefinition(
         key: 'number',
         label: 'Card Number',
         keyboardType: TextInputType.number,
@@ -102,6 +106,16 @@ const List<ItemTypeDefinition> itemTypes = [
         label: 'Expiry (MM/YY)',
         obscure: true,
         required: true,
+      ),
+      FieldDefinition(
+        key: 'issuer',
+        label: 'Issuer / Bank',
+      ),
+      FieldDefinition(
+        key: 'cvv',
+        label: 'CVV',
+        keyboardType: TextInputType.number,
+        obscure: true,
       ),
       FieldDefinition(
         key: 'notes',

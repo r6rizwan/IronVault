@@ -9,18 +9,18 @@ import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/navigation/global_nav.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
-import 'package:ironvault/features/auth/screens/login_screen.dart';
+import 'package:ironvault/features/auth/screens/pin_unlock_screen.dart';
 import 'package:ironvault/features/navigation/app_scaffold.dart';
 
-class AuthChoiceScreen extends ConsumerStatefulWidget {
-  static const String routeName = '/auth-choice';
-  const AuthChoiceScreen({super.key});
+class WelcomeScreen extends ConsumerStatefulWidget {
+  static const String routeName = '/welcome';
+  const WelcomeScreen({super.key});
 
   @override
-  ConsumerState<AuthChoiceScreen> createState() => _AuthChoiceScreenState();
+  ConsumerState<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
+class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final LocalAuthentication _auth = LocalAuthentication();
   bool _checking = true;
   bool _biometricAvailable = false;
@@ -104,8 +104,11 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
 
   void _usePin() {
     if (_unlocking) return;
+    if (_error != null) {
+      setState(() => _error = null);
+    }
     navKey.currentState?.push(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(builder: (_) => const PinUnlockScreen()),
     );
   }
 
@@ -177,10 +180,14 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.60),
+                        color: Colors.white.withValues(
+                          alpha: isDark ? 0.08 : 0.60,
+                        ),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: isDark ? 0.06 : 0.22),
+                          color: Colors.white.withValues(
+                            alpha: isDark ? 0.06 : 0.22,
+                          ),
                         ),
                       ),
                       child: Row(
@@ -194,7 +201,8 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                           const SizedBox(width: 8),
                           Text(
                             'IronVault',
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(
                                   color: textColor,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -202,14 +210,14 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                         ],
                       ),
                     ),
-                    const Spacer(flex: 3),
+                    const Spacer(flex: 2),
                     Text(
                       'Welcome back',
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                            color: textColor,
-                            fontWeight: FontWeight.w800,
-                            height: 0.98,
-                          ),
+                        color: textColor,
+                        fontWeight: FontWeight.w800,
+                        height: 0.98,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     ConstrainedBox(
@@ -223,15 +231,19 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                         ),
                       ),
                     ),
-                    const Spacer(flex: 4),
+                    const SizedBox(height: 28),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white,
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.0),
+                          color: Colors.white.withValues(
+                            alpha: isDark ? 0.08 : 0.0,
+                          ),
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -251,10 +263,9 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                                 width: 52,
                                 height: 52,
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withValues(alpha: 0.14),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withValues(alpha: 0.14),
                                   borderRadius: BorderRadius.circular(18),
                                 ),
                                 child: Icon(
@@ -270,7 +281,10 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                                   children: [
                                     Text(
                                       'Unlock your vault',
-                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
                                             color: textColor,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -278,7 +292,7 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                                     const SizedBox(height: 4),
                                     Text(
                                       biometricEnabled
-                                          ? 'Use your PIN or biometrics to continue.'
+                                          ? 'Use your master PIN, or unlock with biometrics if you prefer.'
                                           : 'Use your master PIN to continue.',
                                       style: TextStyle(
                                         fontSize: 13,
@@ -297,12 +311,14 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                             child: ElevatedButton(
                               onPressed: _usePin,
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(18),
                                 ),
                               ),
-                              child: const Text('Unlock Vault'),
+                              child: const Text('Enter PIN'),
                             ),
                           ),
                           if (biometricEnabled) ...[
@@ -315,12 +331,20 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                                     ? const SizedBox(
                                         width: 16,
                                         height: 16,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
                                       )
                                     : const Icon(Icons.fingerprint),
-                                label: Text(_unlocking ? 'Checking biometrics...' : 'Use biometrics'),
+                                label: Text(
+                                  _unlocking
+                                      ? 'Checking biometrics...'
+                                      : 'Use biometrics',
+                                ),
                                 style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 15),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 15,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(18),
                                   ),
@@ -342,7 +366,7 @@ class _AuthChoiceScreenState extends ConsumerState<AuthChoiceScreen> {
                         ],
                       ),
                     ),
-                    const Spacer(flex: 2),
+                    const Spacer(flex: 3),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -417,12 +441,7 @@ class _GlowOrb extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [
-              color,
-              color.withValues(alpha: 0),
-            ],
-          ),
+          gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
         ),
       ),
     );

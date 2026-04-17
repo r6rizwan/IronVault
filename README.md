@@ -6,6 +6,7 @@ It stores vault data locally on the device and protects it with strong encryptio
 ## Project Overview
 - Local-first vault for passwords and sensitive records
 - Master PIN authentication with optional biometric unlock
+- Welcome screen plus dedicated keypad-based PIN unlock flow
 - Encrypted storage for vault entries
 - Onboarding focused on local privacy, secure unlock, and recovery-key safety
 - Android document scan/import support
@@ -26,7 +27,7 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Auto-lock with configurable timer and app-switch behavior
 - Recovery key flow for PIN recovery with protected reveal
 - Recovery key setup that can be resumed until the user confirms it has been saved
-- Recovery key regeneration from Settings after re-authentication
+- Recovery key management from Settings with re-authentication and manual in-screen generation
 - PIN retry cooldown after repeated failed attempts
 - New-item draft restore and keep/discard draft prompt on exit
 - Encrypted backup restore plus CSV password import/export
@@ -86,7 +87,7 @@ flutter build appbundle --release
 ```
 
 Output paths:
-- `build/app/outputs/flutter-apk/ironvault-v<version>.apk`
+- `build/app/outputs/apk/release/ironvault-v<version>.apk`
 - `build/app/outputs/bundle/release/app-release.aab`
 
 ## Versioning

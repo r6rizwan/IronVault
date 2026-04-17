@@ -5,7 +5,7 @@ import 'package:ironvault/core/utils/recovery_key.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/widgets/blocking_loading_overlay.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_verify_screen.dart';
-import 'package:ironvault/features/auth/screens/setup_pin_screen.dart';
+import 'package:ironvault/features/auth/screens/setup_master_pin_screen.dart';
 
 class ForgotPinScreen extends ConsumerStatefulWidget {
   const ForgotPinScreen({super.key});

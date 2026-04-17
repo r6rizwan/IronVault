@@ -13,20 +13,19 @@ import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/secure_storage.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/utils/pin_kdf.dart';
-import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/core/widgets/blocking_loading_overlay.dart';
-import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
+import 'package:ironvault/features/auth/screens/welcome_screen.dart';
 import 'package:ironvault/features/auth/screens/forgot_pin_screen.dart';
 import 'package:ironvault/features/navigation/app_scaffold.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class PinUnlockScreen extends ConsumerStatefulWidget {
+  const PinUnlockScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<PinUnlockScreen> createState() => _PinUnlockScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen>
+class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
     with SingleTickerProviderStateMixin {
   static const _failedPinAttemptsKey = 'failed_pin_attempts';
   static const _pinCooldownUntilKey = 'pin_cooldown_until';
@@ -81,6 +80,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   bool get _canUseBiometrics => _biometricEnabled && _biometricAvailable;
 
+  String? get _displayInlineMessage {
+    if (_isCooldownActive) {
+      return 'Try again after ${_formatCooldown(_remainingCooldown!)}';
+    }
+    return _inlineError;
+  }
+
   String _collectPin() => _pinDigits.join();
 
   Future<void> _loadCooldownState() async {
@@ -122,7 +128,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final storage = ref.read(secureStorageProvider);
     await storage.deleteValue(_pinCooldownUntilKey);
     if (!mounted) return;
-    setState(() => _remainingCooldown = null);
+    setState(() {
+      _remainingCooldown = null;
+      _inlineError = null;
+    });
   }
 
   Future<void> _resetPinAttemptState(SecureStorage storage) async {
@@ -229,9 +238,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     if (_isCooldownActive) {
       if (mounted) {
-        showAppToast(
-          context,
-          'Too many attempts. Try again in ${_formatCooldown(_remainingCooldown!)}.',
+        setState(
+          () =>
+              _inlineError =
+                  'Too many attempts. Try again in ${_formatCooldown(_remainingCooldown!)}.',
         );
       }
       return;
@@ -273,7 +283,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ? 'Too many attempts. Try again in ${_formatCooldown(_remainingCooldown!)}.'
           : 'Invalid PIN';
       setState(() => _inlineError = message);
-      showAppToast(context, message);
     }
 
     _clearAll();
@@ -324,10 +333,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   void _goBackToWelcome() {
+    _cooldownTimer?.cancel();
+    _clearAll();
+    if (_inlineError != null || _remainingCooldown != null) {
+      setState(() {
+        _inlineError = null;
+        _remainingCooldown = null;
+      });
+    }
     navKey.currentState?.pushReplacement(
       MaterialPageRoute(
-        builder: (_) => const AuthChoiceScreen(),
-        settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+        builder: (_) => const WelcomeScreen(),
+        settings: const RouteSettings(name: WelcomeScreen.routeName),
       ),
     );
   }
@@ -534,9 +551,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 ),
                               ),
                               const SizedBox(height: 22),
-                              if (_inlineError != null) ...[
+                              if (_displayInlineMessage != null) ...[
                                 Text(
-                                  _inlineError!,
+                                  _displayInlineMessage!,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,

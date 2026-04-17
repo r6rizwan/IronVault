@@ -76,9 +76,12 @@ class DashboardScreen extends ConsumerWidget {
     final allItemsFuture = _loadAllItems(ref);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: showAppBar
+          ? Theme.of(context).scaffoldBackgroundColor
+          : Colors.transparent,
       appBar: showAppBar ? AppBar(title: const Text('IronVault')) : null,
       body: SafeArea(
+        bottom: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
           children: [
@@ -240,7 +243,27 @@ class DashboardScreen extends ConsumerWidget {
 
             const SizedBox(height: 22),
 
-            _SectionHeader(title: "Categories", icon: Icons.folder_open),
+            _SectionHeader(
+              title: "Categories",
+              icon: Icons.folder_open,
+              trailing: ActionChip(
+                avatar: const Icon(Icons.apps, size: 16),
+                label: const Text("All"),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CategoriesScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 10),
             FutureBuilder<List<Map<String, dynamic>>>(
               future: allItemsFuture,
@@ -272,27 +295,10 @@ class DashboardScreen extends ConsumerWidget {
                   height: 46,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: shown.length + 2,
+                    itemCount: shown.length + 1,
                     separatorBuilder: (_, __) => const SizedBox(width: 10),
                     itemBuilder: (context, index) {
                       if (index == shown.length) {
-                        return ActionChip(
-                          avatar: const Icon(Icons.apps, size: 18),
-                          label: const Text("All Categories"),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const CategoriesScreen(),
-                              ),
-                            );
-                          },
-                        );
-                      }
-                      if (index == shown.length + 1) {
                         return ActionChip(
                           avatar: const Icon(Icons.add, size: 18),
                           label: const Text("Add"),
@@ -666,8 +672,13 @@ class _SkeletonBox extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final IconData icon;
+  final Widget? trailing;
 
-  const _SectionHeader({required this.title, required this.icon});
+  const _SectionHeader({
+    required this.title,
+    required this.icon,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -679,6 +690,10 @@ class _SectionHeader extends StatelessWidget {
           title,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
+        if (trailing != null) ...[
+          const Spacer(),
+          trailing!,
+        ],
       ],
     );
   }

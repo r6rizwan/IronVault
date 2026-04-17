@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:csv/csv.dart';
 
-import 'package:ironvault/data/repositories/credential_repo.dart';
+import 'package:ironvault/data/repositories/credential_repository.dart';
 
 class CsvImportResult {
   final int imported;

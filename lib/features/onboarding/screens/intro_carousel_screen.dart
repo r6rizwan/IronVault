@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/navigation/global_nav.dart';
 import 'package:ironvault/core/providers.dart';
-import 'package:ironvault/features/auth/screens/setup_pin_screen.dart';
+import 'package:ironvault/features/auth/screens/setup_master_pin_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 
 class IntroCarouselScreen extends ConsumerStatefulWidget {

@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:ironvault/core/secure_storage.dart';
 import 'package:ironvault/data/db/app_db.dart';
-import 'package:ironvault/data/repositories/credential_repo.dart';
+import 'package:ironvault/data/repositories/credential_repository.dart';
 
 final secureStorageProvider = Provider((ref) => SecureStorage());
 

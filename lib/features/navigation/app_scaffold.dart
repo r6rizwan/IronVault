@@ -15,7 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/navigation/global_nav.dart';
-import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
+import 'package:ironvault/features/auth/screens/welcome_screen.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
 
 enum AppPage { home, vault, search, settings }
@@ -40,6 +40,13 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   bool _checkingUpdate = false;
   static const _updateCacheInstalledVersionKey =
       'update_cache_installed_version';
+
+  @override
+  void dispose() {
+    _exitToast?.remove();
+    _exitToast = null;
+    super.dispose();
+  }
 
   Future<_PendingRecoveryKeyStatus> _readPendingRecoveryKeyStatus() async {
     final confirmed = await RecoveryKeyUtil.isConfirmed(_storage);
@@ -267,8 +274,8 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
             ref.read(autoLockProvider.notifier).lockNow();
             navKey.currentState?.pushAndRemoveUntil(
               MaterialPageRoute(
-                builder: (_) => const AuthChoiceScreen(),
-                settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+                builder: (_) => const WelcomeScreen(),
+                settings: const RouteSettings(name: WelcomeScreen.routeName),
               ),
               (_) => false,
             );
@@ -277,6 +284,15 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       ];
     }
     return const [];
+  }
+
+  void _openAddItem({String? typeKey}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddItemScreen(initialType: typeKey),
+      ),
+    );
   }
 
   Widget _navItem({
@@ -415,15 +431,11 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
             ? null
             : FloatingActionButton(
                 heroTag: null,
+                tooltip: 'Add item',
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
                 elevation: 6,
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AddItemScreen()),
-                  );
-                },
+                onPressed: () => _openAddItem(),
                 child: const Icon(Icons.add, size: 26),
               ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,

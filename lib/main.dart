@@ -8,9 +8,9 @@ import 'core/theme/theme_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/providers.dart';
 import 'core/theme/app_tokens.dart';
-import 'features/auth/screens/auth_choice_screen.dart';
+import 'features/auth/screens/welcome_screen.dart';
 import 'features/auth/screens/forgot_pin_screen.dart';
-import 'features/auth/screens/setup_pin_screen.dart';
+import 'features/auth/screens/setup_master_pin_screen.dart';
 import 'features/onboarding/screens/intro_carousel_screen.dart';
 
 Future<void> main() async {
@@ -40,13 +40,13 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  bool _isAuthChoiceVisible() {
+  bool _isWelcomeVisible() {
     Route<dynamic>? currentRoute;
     navKey.currentState?.popUntil((route) {
       currentRoute = route;
       return true;
     });
-    return currentRoute?.settings.name == AuthChoiceScreen.routeName;
+    return currentRoute?.settings.name == WelcomeScreen.routeName;
   }
 
   @override
@@ -67,11 +67,11 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
         autoLock.resumeAutoLock(clearPauseState: false);
 
         if (locked) {
-          if (_isAuthChoiceVisible()) return;
+          if (_isWelcomeVisible()) return;
           navKey.currentState?.pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (_) => const AuthChoiceScreen(),
-              settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+              builder: (_) => const WelcomeScreen(),
+              settings: const RouteSettings(name: WelcomeScreen.routeName),
             ),
             (route) => false,
           );
@@ -180,8 +180,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     // User already set everything → go to auth choice
     navKey.currentState?.pushReplacement(
       MaterialPageRoute(
-        builder: (_) => const AuthChoiceScreen(),
-        settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+        builder: (_) => const WelcomeScreen(),
+        settings: const RouteSettings(name: WelcomeScreen.routeName),
       ),
     );
   }

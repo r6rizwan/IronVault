@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
+import 'package:ironvault/features/auth/screens/welcome_screen.dart';
 import 'package:ironvault/features/navigation/app_scaffold.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
@@ -157,8 +157,8 @@ class _EnableBiometricsScreenState
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => const AuthChoiceScreen(),
-        settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+        builder: (_) => const WelcomeScreen(),
+        settings: const RouteSettings(name: WelcomeScreen.routeName),
       ),
     );
   }

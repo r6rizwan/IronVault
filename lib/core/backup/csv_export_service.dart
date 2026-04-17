@@ -4,7 +4,7 @@ import 'package:csv/csv.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import 'package:ironvault/data/repositories/credential_repo.dart';
+import 'package:ironvault/data/repositories/credential_repository.dart';
 
 class CsvExportService {
   CsvExportService({required this.repo});

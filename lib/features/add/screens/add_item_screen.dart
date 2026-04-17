@@ -113,6 +113,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         _obscure[field.key] = true;
       }
     }
+
   }
 
   void _onTypeChanged(String? value) {
@@ -152,7 +153,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     _documentError = null;
 
     if (title.isEmpty) {
-      _titleError = 'Title is required';
+      _titleError = 'Label is required';
       ok = false;
     }
 
@@ -179,6 +180,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         _fieldErrors['expiry'] = 'Use MM/YY or MM/YYYY format';
         ok = false;
       }
+
     }
 
     if (_typeKey == 'document') {
@@ -798,6 +800,11 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         _ExpiryDateFormatter(),
       ];
     }
+    if (_typeKey == 'card' && key == 'cvv') {
+      return [
+        FilteringTextInputFormatter.digitsOnly,
+      ];
+    }
     return null;
   }
 
@@ -1146,7 +1153,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                       KeyedSubtree(
                         key: _titleKey,
                         child: CommonTextField(
-                          label: 'Title',
+                          label: 'Label',
                           controller: _titleController,
                           requiredField: true,
                           errorText: _titleError,

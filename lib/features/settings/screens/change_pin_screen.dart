@@ -167,46 +167,58 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
     required VoidCallback onBack,
     bool readOnly = false,
   }) {
-    return SizedBox(
-      width: 56,
-      child: TextField(
-        controller: controller,
-        focusNode: node,
-        readOnly: readOnly,
-        maxLength: 1,
-        obscureText: true,
-        obscuringCharacter: '•',
-        enableSuggestions: false,
-        autocorrect: false,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        decoration: InputDecoration(
-          counterText: "",
-          filled: true,
-          fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade400, width: 1.4),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.primary,
-              width: 1.8,
+    return Focus(
+      onKeyEvent: (_, event) {
+        if (!readOnly &&
+            event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.backspace &&
+            controller.text.isEmpty) {
+          onBack();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: SizedBox(
+        width: 56,
+        child: TextField(
+          controller: controller,
+          focusNode: node,
+          readOnly: readOnly,
+          maxLength: 1,
+          obscureText: true,
+          obscuringCharacter: '•',
+          enableSuggestions: false,
+          autocorrect: false,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            counterText: "",
+            filled: true,
+            fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade400, width: 1.4),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 1.8,
+              ),
             ),
           ),
+          cursorColor: Theme.of(context).colorScheme.primary,
+          onChanged: (value) {
+            if (readOnly) return;
+            if (value.isEmpty) {
+              onBack();
+            } else {
+              onNext();
+            }
+          },
         ),
-        cursorColor: Theme.of(context).colorScheme.primary,
-        onChanged: (value) {
-          if (readOnly) return;
-          if (value.isEmpty) {
-            onBack();
-          } else {
-            onNext();
-          }
-        },
       ),
     );
   }
@@ -234,7 +246,9 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
           },
           onBack: () {
             if (i > 0) {
+              controllers[i - 1].clear();
               nodes[i - 1].requestFocus();
+              setState(() {});
             }
           },
         );

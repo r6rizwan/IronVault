@@ -9,7 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:ironvault/core/utils/encryption_util.dart';
-import 'package:ironvault/data/repositories/credential_repo.dart';
+import 'package:ironvault/data/repositories/credential_repository.dart';
 
 class BackupService {
   final CredentialRepository repo;

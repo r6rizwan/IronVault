@@ -11,7 +11,7 @@ import 'package:ironvault/core/services/crash_reporter.dart';
 import 'package:ironvault/features/settings/screens/about_screen.dart';
 import 'package:ironvault/features/vault/screens/password_health_screen.dart';
 import 'change_pin_screen.dart';
-import 'package:ironvault/features/auth/screens/login_screen.dart';
+import 'package:ironvault/features/auth/screens/pin_unlock_screen.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:ironvault/core/utils/app_reauth_util.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
@@ -636,7 +636,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _logout() async {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(builder: (_) => const PinUnlockScreen()),
       (route) => false,
     );
   }

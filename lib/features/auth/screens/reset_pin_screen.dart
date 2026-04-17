@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/utils/pin_kdf.dart';
-import 'package:ironvault/features/auth/screens/auth_choice_screen.dart';
+import 'package:ironvault/features/auth/screens/welcome_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/core/widgets/blocking_loading_overlay.dart';
@@ -75,8 +75,8 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => const AuthChoiceScreen(),
-        settings: const RouteSettings(name: AuthChoiceScreen.routeName),
+        builder: (_) => const WelcomeScreen(),
+        settings: const RouteSettings(name: WelcomeScreen.routeName),
       ),
     );
   }
@@ -87,48 +87,59 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
     required VoidCallback onNext,
     required VoidCallback onBack,
   }) {
-    return SizedBox(
-      width: 56,
-      child: TextField(
-        controller: controller,
-        focusNode: node,
-        maxLength: 1,
-        obscureText: true,
-        obscuringCharacter: '•',
-        enableSuggestions: false,
-        autocorrect: false,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        decoration: InputDecoration(
-          counterText: "",
-          filled: true,
-          fillColor: Theme.of(context).inputDecorationTheme.fillColor,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: Colors.grey.shade400,
-              width: 1.4,
+    return Focus(
+      onKeyEvent: (_, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.backspace &&
+            controller.text.isEmpty) {
+          onBack();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: SizedBox(
+        width: 56,
+        child: TextField(
+          controller: controller,
+          focusNode: node,
+          maxLength: 1,
+          obscureText: true,
+          obscuringCharacter: '•',
+          enableSuggestions: false,
+          autocorrect: false,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            counterText: "",
+            filled: true,
+            fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Colors.grey.shade400,
+                width: 1.4,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 1.8,
+              ),
             ),
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.primary,
-              width: 1.8,
-            ),
-          ),
+          cursorColor: Theme.of(context).colorScheme.primary,
+          onChanged: (value) {
+            setState(() {});
+            if (value.isEmpty) {
+              onBack();
+            } else {
+              onNext();
+            }
+          },
         ),
-        cursorColor: Theme.of(context).colorScheme.primary,
-        onChanged: (value) {
-          setState(() {});
-          if (value.isEmpty) {
-            onBack();
-          } else {
-            onNext();
-          }
-        },
       ),
     );
   }
@@ -155,7 +166,9 @@ class _ResetPinScreenState extends ConsumerState<ResetPinScreen> {
           },
           onBack: () {
             if (i > 0) {
+              controllers[i - 1].clear();
               nodes[i - 1].requestFocus();
+              setState(() {});
             }
           },
         );
