@@ -23,7 +23,7 @@ It stores vault data locally on the device and protects it with strong encryptio
   - Documents
 - Search and filtering
 - Category support with rename propagation across existing saved items
-- Password health analytics
+- Password health scoring with actionable review cards for weak, reused, and old passwords
 - Auto-lock with configurable timer and app-switch behavior
 - Recovery key flow for PIN recovery with protected reveal
 - Recovery key setup that can be resumed until the user confirms it has been saved
@@ -32,6 +32,7 @@ It stores vault data locally on the device and protects it with strong encryptio
 - New-item draft restore and keep/discard draft prompt on exit
 - Encrypted backup restore plus CSV password import/export
 - Pull-to-refresh on Vault, Search, and Password Health screens
+- One-tap deep links from Password Health into filtered affected items
 
 ## Security Model
 - Vault data is encrypted before storage

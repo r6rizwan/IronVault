@@ -15,11 +15,19 @@ enum SortOption { favoritesFirst, aToZ, zToA, recentAdded, recentUpdated }
 class CredentialListScreen extends ConsumerStatefulWidget {
   final String? categoryFilter;
   final bool showAppBar;
+  final Set<String>? itemIdFilter;
+  final String? titleOverride;
+  final String? emptyTitle;
+  final String? emptySubtitle;
 
   const CredentialListScreen({
     super.key,
     this.categoryFilter,
     this.showAppBar = true,
+    this.itemIdFilter,
+    this.titleOverride,
+    this.emptyTitle,
+    this.emptySubtitle,
   });
 
   @override
@@ -250,6 +258,8 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
     final categoryFilter = widget.categoryFilter?.trim();
     final hasCategoryFilter =
         categoryFilter != null && categoryFilter.isNotEmpty;
+    final itemIdFilter = widget.itemIdFilter;
+    final hasItemIdFilter = itemIdFilter != null && itemIdFilter.isNotEmpty;
     final filteredItems = _items.where((item) {
       final category = categoryFilter;
       if (category != null && category.isNotEmpty) {
@@ -258,6 +268,10 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
           return false;
         }
       }
+      if (hasItemIdFilter &&
+          !itemIdFilter.contains((item["id"] ?? '').toString())) {
+        return false;
+      }
       return true;
     }).toList();
 
@@ -265,14 +279,17 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
       appBar: widget.showAppBar
           ? AppBar(
               elevation: 0,
-              title: Text(hasCategoryFilter ? categoryFilter : "Vault"),
+              title: Text(
+                widget.titleOverride ??
+                    (hasCategoryFilter ? categoryFilter : "Vault"),
+              ),
               actions: [
                 IconButton(
                   icon: const Icon(Icons.swap_vert_rounded),
                   tooltip: "Sort",
                   onPressed: _openSortSheet,
                 ),
-                if (!hasCategoryFilter)
+                if (!hasCategoryFilter && !hasItemIdFilter)
                   IconButton(
                     icon: const Icon(Icons.folder),
                     tooltip: "Categories",
@@ -312,14 +329,18 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-                            children: const [
-                              SizedBox(height: 4),
+                            children: [
+                              const SizedBox(height: 4),
                               SizedBox(
                                 height: 420,
                                 child: EmptyState(
-                                  icon: Icons.lock_open_rounded,
-                                  title: "Your vault is empty",
+                                  icon: hasItemIdFilter
+                                      ? Icons.health_and_safety_outlined
+                                      : Icons.lock_open_rounded,
+                                  title:
+                                      widget.emptyTitle ?? "Your vault is empty",
                                   subtitle:
+                                      widget.emptySubtitle ??
                                       "Add your first item to start storing passwords, notes, cards, and documents.",
                                 ),
                               ),

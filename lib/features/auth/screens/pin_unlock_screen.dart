@@ -96,8 +96,12 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
 
     if (until == null || !until.isAfter(DateTime.now())) {
       await storage.deleteValue(_pinCooldownUntilKey);
+      await storage.deleteValue(_failedPinAttemptsKey);
       if (!mounted) return;
-      setState(() => _remainingCooldown = null);
+      setState(() {
+        _remainingCooldown = null;
+        _inlineError = null;
+      });
       return;
     }
 
@@ -127,6 +131,7 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
   Future<void> _clearCooldownState() async {
     final storage = ref.read(secureStorageProvider);
     await storage.deleteValue(_pinCooldownUntilKey);
+    await storage.deleteValue(_failedPinAttemptsKey);
     if (!mounted) return;
     setState(() {
       _remainingCooldown = null;
@@ -353,6 +358,8 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
     final value = _pinDigits[index];
     final filled = value.isNotEmpty;
     final hasError = _inlineError != null && !_isCooldownActive;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final baseColor = AppThemeColors.text(context);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 160),
@@ -363,12 +370,18 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
         color: hasError
             ? Theme.of(context).colorScheme.error
             : filled
-            ? Colors.white.withValues(alpha: 0.92)
-            : Colors.white.withValues(alpha: 0.16),
+                ? (isDark
+                    ? Colors.white.withValues(alpha: 0.92)
+                    : baseColor.withValues(alpha: 0.86))
+                : (isDark
+                    ? Colors.white.withValues(alpha: 0.16)
+                    : baseColor.withValues(alpha: 0.18)),
         boxShadow: filled
             ? [
                 BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.08),
+                  color: (isDark ? Colors.white : baseColor).withValues(
+                    alpha: isDark ? 0.08 : 0.12,
+                  ),
                   blurRadius: 12,
                   spreadRadius: 1,
                 ),
@@ -378,28 +391,49 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
     );
   }
 
-  Widget _keyButton({required Widget child, VoidCallback? onTap}) {
+  Widget _keyButton({
+    required Widget child,
+    VoidCallback? onTap,
+    Color? splashColor,
+    Color? highlightColor,
+  }) {
     final enabled = onTap != null && !_loading;
     return InkResponse(
       onTap: enabled ? onTap : null,
       radius: 26,
-      splashColor: Colors.white.withValues(alpha: 0.08),
-      highlightColor: Colors.white.withValues(alpha: 0.04),
+      splashColor: splashColor,
+      highlightColor: highlightColor,
       child: SizedBox(height: 44, child: Center(child: child)),
     );
   }
 
   List<Widget> _buildKeypadButtons(Color textColor) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final keyColor = isDark
+        ? Colors.white.withValues(alpha: 0.94)
+        : textColor.withValues(alpha: 0.92);
+    final iconColor = isDark
+        ? Colors.white.withValues(alpha: 0.72)
+        : textColor.withValues(alpha: 0.72);
+    final splashColor = (isDark ? Colors.white : textColor).withValues(
+      alpha: isDark ? 0.08 : 0.10,
+    );
+    final highlightColor = (isDark ? Colors.white : textColor).withValues(
+      alpha: isDark ? 0.04 : 0.06,
+    );
+
     final buttons = <Widget>[
       for (final digit in ['1', '2', '3', '4', '5', '6', '7', '8', '9'])
         _keyButton(
           onTap: () => _appendDigit(digit),
+          splashColor: splashColor,
+          highlightColor: highlightColor,
           child: Text(
             digit,
             style: TextStyle(
               fontSize: 34,
               fontWeight: FontWeight.w500,
-              color: Colors.white.withValues(alpha: 0.94),
+              color: keyColor,
             ),
           ),
         ),
@@ -409,10 +443,12 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
       _canUseBiometrics
           ? _keyButton(
               onTap: _useBiometrics,
+              splashColor: splashColor,
+              highlightColor: highlightColor,
               child: Icon(
                 Icons.fingerprint,
                 size: 24,
-                color: Colors.white.withValues(alpha: 0.72),
+                color: iconColor,
               ),
             )
           : const SizedBox.shrink(),
@@ -421,12 +457,14 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
     buttons.add(
       _keyButton(
         onTap: () => _appendDigit('0'),
+        splashColor: splashColor,
+        highlightColor: highlightColor,
         child: Text(
           '0',
           style: TextStyle(
             fontSize: 34,
             fontWeight: FontWeight.w500,
-            color: Colors.white.withValues(alpha: 0.94),
+            color: keyColor,
           ),
         ),
       ),
@@ -435,9 +473,11 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
     buttons.add(
       _keyButton(
         onTap: _deleteDigit,
+        splashColor: splashColor,
+        highlightColor: highlightColor,
         child: Icon(
           Icons.backspace_outlined,
-          color: Colors.white.withValues(alpha: 0.72),
+          color: iconColor,
         ),
       ),
     );
@@ -449,6 +489,7 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = AppThemeColors.text(context);
+    final textMuted = AppThemeColors.textMuted(context);
     final bgGradient = LinearGradient(
       colors: isDark
           ? [const Color(0xFF0B1020), const Color(0xFF111D38)]
@@ -525,9 +566,7 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
                                 'Enter PIN',
                                 style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.92,
-                                      ),
+                                      color: textColor,
                                       fontWeight: FontWeight.w600,
                                       letterSpacing: 0.2,
                                     ),
@@ -544,7 +583,7 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
                                       : 'Use your 4-digit PIN to unlock your vault.',
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.white.withValues(alpha: 0.54),
+                                    color: textMuted,
                                     height: 1.35,
                                   ),
                                   textAlign: TextAlign.center,
