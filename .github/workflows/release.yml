@@ -54,7 +54,12 @@ jobs:
           # Prefer the Gradle variant output (same signing as the configured release variant).
           GRADLE_APK="$(ls build/app/outputs/apk/release/ironvault-v*.apk 2>/dev/null | head -n 1 || true)"
           if [ -n "${GRADLE_APK}" ] && [ -f "${GRADLE_APK}" ]; then
-            cp "${GRADLE_APK}" "${DEST}"
+            # Gradle may already output exactly DEST; cp same→same fails with exit 1.
+            if [ -f "${DEST}" ] && [ "$(realpath "${GRADLE_APK}")" = "$(realpath "${DEST}")" ]; then
+              :
+            else
+              cp "${GRADLE_APK}" "${DEST}"
+            fi
           else
             cp build/app/outputs/flutter-apk/app-release.apk "${DEST}"
           fi
