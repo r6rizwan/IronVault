@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.16
+
+- Hardened GitHub Actions release signing (keystore decode and `key.properties` generation).
+- Added CI verification of the release APK (size, signing cert, and `aapt` package metadata).
+
 ## v1.0.15
 
 - Added proper Android release-signing support for local and GitHub Actions builds.

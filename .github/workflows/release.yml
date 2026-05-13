@@ -32,19 +32,39 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystore.jks
-          cat <<EOF > android/key.properties
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyPassword=$ANDROID_KEY_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          storeFile=keystore.jks
-          EOF
+          # printf avoids echo mangling base64; fail if keystore is empty
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystore.jks
+          test -s android/app/keystore.jks
+          {
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "storeFile=keystore.jks"
+          } > android/key.properties
 
       - name: Build release APK
         run: flutter build apk --release
 
       - name: Rename APK for release
         run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/apk/release/ironvault-${{ github.ref_name }}.apk
+
+      - name: Verify APK (package + version + keystore)
+        run: |
+          APK="build/app/outputs/apk/release/ironvault-${{ github.ref_name }}.apk"
+          ls -la "$APK"
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          APKSIGNER="$(find "$SDK" -path '*/build-tools/*/apksigner' 2>/dev/null | sort -V | tail -1)"
+          if test -n "$APKSIGNER" && test -x "$APKSIGNER"; then
+            "$APKSIGNER" verify --print-certs "$APK" | head -40
+          else
+            echo "apksigner not found under SDK; skip cert dump"
+          fi
+          AAPT="$(find "$SDK" -path '*/build-tools/*/aapt' 2>/dev/null | sort -V | tail -1)"
+          if test -n "$AAPT" && test -x "$AAPT"; then
+            "$AAPT" dump badging "$APK" | head -5
+          else
+            echo "aapt not found in SDK; skip badging dump"
+          fi
 
       - name: Extract release notes from changelog
         run: |
