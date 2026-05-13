@@ -25,15 +25,38 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Restore release signing files
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystore.jks
+          cat <<EOF > android/key.properties
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=keystore.jks
+          EOF
+
       - name: Build release APK
         run: flutter build apk --release
 
       - name: Rename APK for release
         run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/apk/release/ironvault-${{ github.ref_name }}.apk
 
+      - name: Extract release notes from changelog
+        run: |
+          awk '
+            $0 == "## " tag { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' tag="${{ github.ref_name }}" CHANGELOG.md | sed '/./,$!d' > release_notes.md
+
       - name: Create GitHub Release and upload APK
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: release_notes.md
           files: build/app/outputs/apk/release/ironvault-${{ github.ref_name }}.apk
