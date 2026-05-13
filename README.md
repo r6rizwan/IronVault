@@ -97,16 +97,44 @@ Version is maintained in `pubspec.yaml`:
 - `versionCode` comes from the build number suffix
 
 Use Git tags for releases:
-- Tags follow the app version format in `pubspec.yaml`
+- Tags follow the app version format in `pubspec.yaml` (for example `v1.0.17`).
 
-## GitHub Releases Update Flow
-The app checks your GitHub Releases and can indicate when a newer version exists.
+## GitHub Actions (CI/CD)
 
-Recommended release process:
-1. Update version in `pubspec.yaml`
-2. Build release APK/AAB
-3. Create GitHub release with matching tag
-4. Upload release artifact(s)
+Workflows live under `.github/workflows/`.
+
+### Continuous integration
+- **Flutter Analyze** runs on every **push** and **pull request** to `main`: checks out the repo, runs `flutter pub get`, then `flutter analyze`.
+
+### Automated release APK (tag-driven)
+- **Release APK** runs when you **push a tag** whose name starts with `v` (for example `v1.0.17`).
+- The job restores Android release signing from **repository secrets** (never committed): base64-decoded keystore under `android/app/keystore.jks` and `android/key.properties` generated in the runner.
+- It runs `flutter build apk --release`, stages the release artifact as `ironvault-<tag>.apk` (preferring the Gradle `apk/release` output when present), runs a short **verify** step (`apksigner` / `aapt` when available), then **creates or updates a GitHub Release** for that tag and uploads the APK.
+- **Release notes** for the GitHub Release are taken from `CHANGELOG.md`: the workflow looks for a section whose heading is exactly `## ` plus the tag name (for example `## v1.0.17`). Add that section before you push the tag so the release page is populated.
+
+### Repository secrets (maintainers, for automated APK releases)
+
+Configure these in **GitHub → Settings → Secrets and variables → Actions**:
+
+| Secret | Purpose |
+|--------|---------|
+| `ANDROID_KEYSTORE_BASE64` | Keystore file, base64-encoded (used only in CI, not stored in git) |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Signing key alias |
+| `ANDROID_KEY_PASSWORD` | Signing key password |
+
+### Recommended release process (with Actions)
+
+1. Update `version` in `pubspec.yaml`.
+2. Add a matching section to `CHANGELOG.md`, for example `## v1.0.17` (must match the tag you will push).
+3. Commit and push to `main`.
+4. Create and push the tag (for example `git tag -a v1.0.17 -m "v1.0.17"` then `git push origin v1.0.17`).
+5. Confirm the **Release APK** workflow on the **Actions** tab completed; download **`ironvault-v1.0.17.apk`** from **Releases**.
+
+For a **local** signed release build, keep using `android/key.properties` and your keystore as described in **Security Rules For Contributors** below; do not commit those files.
+
+## GitHub Releases (in-app update check)
+The app can check **GitHub Releases** and tell you when a newer version is available. That flow is independent of Actions: it compares your installed version to published releases.
 
 ## Repository Structure
 ```text
@@ -114,6 +142,8 @@ lib/
   core/
   data/
   features/
+.github/
+  workflows/
 android/
 ios/
 assets/
