@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.0.15
+
+- Added proper Android release-signing support for local and GitHub Actions builds.
+- Updated the release workflow to rebuild the keystore from GitHub Actions secrets before creating the APK.
+- Switched GitHub Release notes from generic auto-generation to changelog-based release notes.
+- Fixed the release-signing path so future APK releases can install as updates instead of conflicting with existing installs.
+
 ## v1.0.14
 
 - Internal maintenance release.
