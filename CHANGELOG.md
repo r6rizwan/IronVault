@@ -6,6 +6,8 @@
 - Updated the release workflow to rebuild the keystore from GitHub Actions secrets before creating the APK.
 - Switched GitHub Release notes from generic auto-generation to changelog-based release notes.
 - Fixed the release-signing path so future APK releases can install as updates instead of conflicting with existing installs.
+- Fixed encrypted backup export for document items with scanned pages.
+- Fixed document sharing so scanned document files are attached instead of only sharing metadata.
 
 ## v1.0.14
 

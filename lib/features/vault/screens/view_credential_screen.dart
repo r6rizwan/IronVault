@@ -272,8 +272,17 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
         try {
           final decoded = jsonDecode(raw);
           if (decoded is List && decoded.isNotEmpty) {
+            final scanFiles = decoded
+                .map((e) => e.toString())
+                .where((path) => path.trim().isNotEmpty)
+                .map((path) => XFile(path))
+                .toList();
             entries.add(
-              _ShareEntry(label: 'Scanned Pages', value: '${decoded.length}'),
+              _ShareEntry(
+                label: 'Scanned Pages',
+                value: '${decoded.length}',
+                files: scanFiles,
+              ),
             );
           }
         } catch (_) {}
@@ -302,6 +311,13 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
       buffer.writeln('${entry.label}: ${entry.value}');
     }
     return buffer.toString().trim();
+  }
+
+  List<XFile> _buildShareFilesFromEntries(List<_ShareEntry> entries) {
+    return entries
+        .where((entry) => entry.selected)
+        .expand((entry) => entry.files)
+        .toList();
   }
 
   Future<void> _shareCredential() async {
@@ -392,7 +408,8 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
 
     if (shouldShare != true) return;
     final shareText = _buildShareTextFromEntries(entries);
-    if (shareText.trim().isEmpty) {
+    final shareFiles = _buildShareFilesFromEntries(entries);
+    if (shareText.trim().isEmpty && shareFiles.isEmpty) {
       showAppToast(context, 'Select at least one field to share');
       return;
     }
@@ -402,8 +419,9 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     try {
       await SharePlus.instance.share(
         ShareParams(
-          text: shareText,
+          text: shareText.trim().isEmpty ? null : shareText,
           subject: (item["title"] ?? "Credential").toString(),
+          files: shareFiles,
         ),
       );
     } catch (e) {
@@ -695,9 +713,11 @@ class _ShareEntry {
     required this.label,
     required this.value,
     this.selected = true,
+    this.files = const [],
   });
 
   final String label;
   final String value;
   bool selected;
+  final List<XFile> files;
 }

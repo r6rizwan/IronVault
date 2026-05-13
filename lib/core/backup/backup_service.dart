@@ -23,7 +23,8 @@ class BackupService {
     final exportedItems = <Map<String, dynamic>>[];
 
     for (final item in items) {
-      final fields = (item['fields'] as Map?)?.cast<String, dynamic>() ?? {};
+      final rawFields = (item['fields'] as Map?)?.cast<String, dynamic>() ?? {};
+      final fields = Map<String, dynamic>.from(rawFields);
 
       // Normalize scan paths and add files to zip.
       if ((item['type'] ?? '') == 'document' && fields['scans'] != null) {
