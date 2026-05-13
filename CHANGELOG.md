@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.17
+
+- Bug fixes and reliability improvements when installing or updating the Android app, including if you also run preview builds from a computer.
+
 ## v1.0.16
 
 - Bug fixes and reliability improvements for installing and updating the Android app.
