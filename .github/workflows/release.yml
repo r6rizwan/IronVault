@@ -45,8 +45,20 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Rename APK for release
-        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/apk/release/ironvault-${{ github.ref_name }}.apk
+      - name: Stage release APK for GitHub Release
+        run: |
+          set -euo pipefail
+          TAG="${{ github.ref_name }}"
+          DEST="build/app/outputs/apk/release/ironvault-${TAG}.apk"
+          mkdir -p build/app/outputs/apk/release
+          # Prefer the Gradle variant output (same signing as the configured release variant).
+          GRADLE_APK="$(ls build/app/outputs/apk/release/ironvault-v*.apk 2>/dev/null | head -n 1 || true)"
+          if [ -n "${GRADLE_APK}" ] && [ -f "${GRADLE_APK}" ]; then
+            cp "${GRADLE_APK}" "${DEST}"
+          else
+            cp build/app/outputs/flutter-apk/app-release.apk "${DEST}"
+          fi
+          ls -la "${DEST}"
 
       - name: Verify APK (package + version + keystore)
         run: |

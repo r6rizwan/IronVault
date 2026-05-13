@@ -49,6 +49,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // So `flutter run` / debug installs use a different id than release APKs
+            // (avoids "package conflicts" when sideloading a signed release build).
+            applicationIdSuffix = ".debug"
+        }
         release {
             signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")
