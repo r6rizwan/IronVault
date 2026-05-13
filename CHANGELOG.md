@@ -2,8 +2,7 @@
 
 ## v1.0.16
 
-- Hardened GitHub Actions release signing (keystore decode and `key.properties` generation).
-- Added CI verification of the release APK (size, signing cert, and `aapt` package metadata).
+- Bug fixes and reliability improvements for installing and updating the Android app.
 
 ## v1.0.15
 
