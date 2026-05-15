@@ -15,6 +15,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1 # Only pulls the latest commit, not the whole history
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17' # Match the version required by your Flutter/Gradle version
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
