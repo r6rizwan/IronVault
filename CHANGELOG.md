@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.18
+
+- Refined recovery-key management and re-authentication behavior.
+- Improved password-health guidance and draft-restore protections.
+- Tightened security, privacy, and update-check reliability across core flows.
+
 ## v1.0.17
 
 - Bug fixes and reliability improvements when installing or updating the Android app, including if you also run preview builds from a computer.

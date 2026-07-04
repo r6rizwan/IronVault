@@ -16,10 +16,10 @@ import 'package:local_auth/local_auth.dart';
 import 'package:ironvault/core/utils/app_reauth_util.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
 import 'package:ironvault/core/backup/backup_service.dart';
-import 'package:ironvault/core/backup/csv_import_service.dart';
 import 'package:ironvault/core/backup/csv_export_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:file_picker/file_picker.dart';
+import 'csv_mapping_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
@@ -395,7 +395,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _importCsv() async {
-    final ctx = context;
     final pick = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
@@ -404,75 +403,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final path = pick.files.first.path;
     if (path == null) return;
 
-    showDialog(
-      context: ctx,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        title: Text('Importing CSV'),
-        content: Row(
-          children: [
-            SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: 12),
-            Text('Please wait...'),
-          ],
-        ),
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CsvMappingScreen(file: File(path)),
       ),
     );
-
-    try {
-      ref.read(autoLockProvider.notifier).suspendAutoLock();
-      try {
-        final service = CsvImportService(repo: ref.read(credentialRepoProvider));
-        final result = await service.importPasswords(File(path));
-        ref.read(vaultRefreshProvider.notifier).state++;
-        if (!ctx.mounted) return;
-        Navigator.pop(ctx);
-        showDialog(
-          context: ctx,
-          builder: (_) => AlertDialog(
-            title: const Text('CSV import complete'),
-            content: Text(
-              'Imported ${result.imported} item(s).'
-              '${result.skipped > 0 ? " Skipped ${result.skipped} row(s)." : ""}',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      } finally {
-        ref.read(autoLockProvider.notifier).resumeAutoLock();
-      }
-    } catch (e) {
-      await CrashReporter.captureException(
-        e,
-        StackTrace.current,
-        feature: 'import_export',
-        action: 'import_csv',
-      );
-      if (!ctx.mounted) return;
-      Navigator.pop(ctx);
-      showDialog(
-        context: ctx,
-        builder: (_) => AlertDialog(
-          title: const Text('CSV import failed'),
-          content: Text('Could not import CSV: $e'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    }
   }
 
   Future<void> _exportCsv() async {
