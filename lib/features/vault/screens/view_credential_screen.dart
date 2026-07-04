@@ -45,7 +45,8 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
   Future<void> _loadPrefs() async {
     final storage = ref.read(secureStorageProvider);
     _clipboardDisabled =
-        (await storage.readValue('disable_clipboard_copy') ?? 'false') == 'true';
+        (await storage.readValue('disable_clipboard_copy') ?? 'false') ==
+        'true';
     if (mounted) setState(() {});
   }
 
@@ -253,7 +254,8 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     final typeKey = (item["type"] ?? "password").toString();
     final typeDef = typeByKey(typeKey);
     final fields =
-        (item["fields"] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+        (item["fields"] as Map?)?.cast<String, dynamic>() ??
+        <String, dynamic>{};
 
     final entries = <_ShareEntry>[
       _ShareEntry(label: 'Title', value: (item["title"] ?? "").toString()),
@@ -292,11 +294,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
       final value = (fields[field.key] ?? '').toString().trim();
       if (value.isEmpty) continue;
       entries.add(
-        _ShareEntry(
-          label: field.label,
-          value: value,
-          selected: !field.obscure,
-        ),
+        _ShareEntry(label: field.label, value: value, selected: !field.obscure),
       );
     }
 
@@ -490,7 +488,8 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     final typeKey = (item["type"] ?? "password").toString();
     final typeDef = typeByKey(typeKey);
     final fields =
-        (item["fields"] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+        (item["fields"] as Map?)?.cast<String, dynamic>() ??
+        <String, dynamic>{};
 
     return Scaffold(
       appBar: AppBar(
@@ -670,18 +669,15 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                             _copiedKey == field.key
                                 ? Icons.check
                                 : _clipboardDisabled
-                                    ? Icons.lock_outline
-                                    : Icons.copy,
-                            color:
-                                _copiedKey == field.key
-                                    ? Colors.green
-                                    : (_clipboardDisabled
-                                        ? Colors.grey
-                                        : null),
+                                ? Icons.lock_outline
+                                : Icons.copy,
+                            color: _copiedKey == field.key
+                                ? Colors.green
+                                : (_clipboardDisabled ? Colors.grey : null),
                             size: 22,
                           ),
-                          onPressed: _copiedKey == field.key ||
-                                  _clipboardDisabled
+                          onPressed:
+                              _copiedKey == field.key || _clipboardDisabled
                               ? null
                               : () => _copyValue(field.key, value),
                         ),

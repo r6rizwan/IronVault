@@ -113,7 +113,6 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         _obscure[field.key] = true;
       }
     }
-
   }
 
   void _onTypeChanged(String? value) {
@@ -180,7 +179,6 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         _fieldErrors['expiry'] = 'Use MM/YY or MM/YYYY format';
         ok = false;
       }
-
     }
 
     if (_typeKey == 'document') {
@@ -216,7 +214,9 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
 
     final draftType = (draft['typeKey'] ?? '').toString().trim();
     final fields = (draft['fields'] as Map?)?.cast<String, dynamic>() ?? {};
-    final scans = (draft['scanPaths'] as List?)?.map((e) => e.toString()).toList();
+    final scans = (draft['scanPaths'] as List?)
+        ?.map((e) => e.toString())
+        .toList();
     final category = draft['selectedCategory']?.toString();
 
     if (draftType.isNotEmpty && draftType != _typeKey) {
@@ -470,7 +470,8 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   }
 
   Future<String?> _compressAndMove(String inputPath, String dirPath) async {
-    final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}.jpg';
+    final fileName =
+        'scan_${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}.jpg';
     final targetPath = '$dirPath/$fileName';
     try {
       final result = await FlutterImageCompress.compressAndGetFile(
@@ -643,14 +644,14 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                 label: const Text('Add Pages'),
               ),
               const SizedBox(width: 10),
-      if (_scanPaths.isNotEmpty)
-        TextButton(
-          onPressed: () {
-            setState(() => _scanPaths.clear());
-            _scheduleDraftSave();
-          },
-          child: const Text('Clear'),
-        ),
+              if (_scanPaths.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    setState(() => _scanPaths.clear());
+                    _scheduleDraftSave();
+                  },
+                  child: const Text('Clear'),
+                ),
             ],
           ),
         ],
@@ -801,9 +802,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       ];
     }
     if (_typeKey == 'card' && key == 'cvv') {
-      return [
-        FilteringTextInputFormatter.digitsOnly,
-      ];
+      return [FilteringTextInputFormatter.digitsOnly];
     }
     return null;
   }
@@ -985,6 +984,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                   height: 320,
                   child: ReorderableListView.builder(
                     itemCount: _scanPaths.length,
+                    // ignore: deprecated_member_use
                     onReorder: (oldIndex, newIndex) {
                       setState(() {
                         if (newIndex > oldIndex) newIndex -= 1;
@@ -1143,78 +1143,80 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                      _dropdownField(
-                        label: 'Type',
-                        valueText: type.label,
-                        onTap: () => _openTypePicker(context),
-                      ),
-                      const SizedBox(height: 16),
-
-                      KeyedSubtree(
-                        key: _titleKey,
-                        child: CommonTextField(
-                          label: 'Label',
-                          controller: _titleController,
-                          requiredField: true,
-                          errorText: _titleError,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      if (_typeKey == 'password') ...[
                         _dropdownField(
-                          label: 'Password category (optional)',
-                          valueText: _selectedCategory ?? 'None',
-                          onTap: () =>
-                              _openCategoryPicker(context, filteredCategories),
+                          label: 'Type',
+                          valueText: type.label,
+                          onTap: () => _openTypePicker(context),
                         ),
-                        const SizedBox(height: 18),
-                      ],
+                        const SizedBox(height: 16),
 
-                      if (isDocument) ...[
-                        _scanSection(context),
-                        const SizedBox(height: 12),
-                      ],
-
-                      ...type.fields.map((field) {
-                        if (field.key == 'scans') {
-                          return const SizedBox.shrink();
-                        }
-                        final controller = _controllers[field.key]!;
-                        final obscure = _obscure[field.key] ?? false;
-                        final suffix = field.obscure
-                            ? IconButton(
-                                icon: Icon(
-                                  obscure
-                                      ? Icons.visibility
-                                      : Icons.visibility_off,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscure[field.key] = !obscure;
-                                  });
-                                },
-                              )
-                            : null;
-
-                        return Padding(
-                          key: _fieldKeys[field.key],
-                          padding: const EdgeInsets.only(bottom: 14),
+                        KeyedSubtree(
+                          key: _titleKey,
                           child: CommonTextField(
-                            label: field.label,
-                            controller: controller,
-                            obscure: field.obscure ? obscure : false,
-                            keyboardType: field.keyboardType,
-                            inputFormatters: _formattersForField(field.key),
-                            maxLines: field.maxLines,
-                            suffix: suffix,
-                            requiredField: field.required,
-                            errorText: _fieldErrors[field.key],
+                            label: 'Label',
+                            controller: _titleController,
+                            requiredField: true,
+                            errorText: _titleError,
                           ),
-                        );
-                      }),
+                        ),
+                        const SizedBox(height: 16),
 
-                      const SizedBox(height: 6),
+                        if (_typeKey == 'password') ...[
+                          _dropdownField(
+                            label: 'Password category (optional)',
+                            valueText: _selectedCategory ?? 'None',
+                            onTap: () => _openCategoryPicker(
+                              context,
+                              filteredCategories,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+
+                        if (isDocument) ...[
+                          _scanSection(context),
+                          const SizedBox(height: 12),
+                        ],
+
+                        ...type.fields.map((field) {
+                          if (field.key == 'scans') {
+                            return const SizedBox.shrink();
+                          }
+                          final controller = _controllers[field.key]!;
+                          final obscure = _obscure[field.key] ?? false;
+                          final suffix = field.obscure
+                              ? IconButton(
+                                  icon: Icon(
+                                    obscure
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscure[field.key] = !obscure;
+                                    });
+                                  },
+                                )
+                              : null;
+
+                          return Padding(
+                            key: _fieldKeys[field.key],
+                            padding: const EdgeInsets.only(bottom: 14),
+                            child: CommonTextField(
+                              label: field.label,
+                              controller: controller,
+                              obscure: field.obscure ? obscure : false,
+                              keyboardType: field.keyboardType,
+                              inputFormatters: _formattersForField(field.key),
+                              maxLines: field.maxLines,
+                              suffix: suffix,
+                              requiredField: field.required,
+                              errorText: _fieldErrors[field.key],
+                            ),
+                          );
+                        }),
+
+                        const SizedBox(height: 6),
                       ],
                     ),
                   ),
