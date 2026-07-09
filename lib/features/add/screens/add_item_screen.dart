@@ -443,8 +443,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       try {
         result = await FilePicker.platform.pickFiles(
           allowMultiple: true,
-          type: FileType.custom,
-          allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+          type: FileType.any,
         );
       } catch (_) {
         result = null;
@@ -459,9 +458,9 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     for (final file in result.files) {
       final path = file.path;
       if (path == null) continue;
-      final compressed = await _compressAndMove(path, dir.path);
-      if (compressed != null) {
-        _scanPaths.add(compressed);
+      final copied = await _compressAndMove(path, dir.path);
+      if (copied != null) {
+        _scanPaths.add(copied);
       }
     }
 
@@ -469,11 +468,37 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     _scheduleDraftSave();
   }
 
+  bool _isPdfAttachment(String path) {
+    return path.toLowerCase().endsWith('.pdf');
+  }
+
+  String _getFileExtension(String path) {
+    final dot = path.lastIndexOf('.');
+    if (dot <= 0 || dot == path.length - 1) return 'bin';
+    return path.substring(dot + 1).toLowerCase();
+  }
+
+  bool _isImageAttachment(String path) {
+    final ext = _getFileExtension(path);
+    return ext == 'jpg' || ext == 'jpeg' || ext == 'png' || ext == 'webp';
+  }
+
   Future<String?> _compressAndMove(String inputPath, String dirPath) async {
+    final source = File(inputPath);
+    if (!await source.exists()) return null;
+
+    final extension = _isImageAttachment(inputPath)
+        ? 'jpg'
+        : _getFileExtension(inputPath);
     final fileName =
-        'scan_${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}.jpg';
+        'scan_${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}.$extension';
     final targetPath = '$dirPath/$fileName';
     try {
+      if (!_isImageAttachment(inputPath)) {
+        await source.copy(targetPath);
+        return targetPath;
+      }
+
       final result = await FlutterImageCompress.compressAndGetFile(
         inputPath,
         targetPath,
@@ -483,9 +508,8 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       );
       if (result != null) {
         try {
-          final original = File(inputPath);
-          if (await original.exists()) {
-            await original.delete();
+          if (await source.exists()) {
+            await source.delete();
           }
         } catch (_) {}
         return result.path;
@@ -596,14 +620,38 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                     onTap: () => _openScanPreview(context, i),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        File(path),
-                        width: 70,
-                        height: 88,
-                        fit: BoxFit.cover,
-                        cacheWidth: 240,
-                        cacheHeight: 320,
-                      ),
+                      child: _isImageAttachment(path)
+                          ? Image.file(
+                              File(path),
+                              width: 70,
+                              height: 88,
+                              fit: BoxFit.cover,
+                              cacheWidth: 240,
+                              cacheHeight: 320,
+                            )
+                          : Container(
+                              width: 70,
+                              height: 88,
+                              color: Colors.grey.shade200,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _isPdfAttachment(path)
+                                        ? Icons.picture_as_pdf
+                                        : Icons.insert_drive_file,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _isPdfAttachment(path)
+                                        ? 'PDF'
+                                        : _getFileExtension(path).toUpperCase(),
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
                     ),
                   );
                 },
@@ -880,7 +928,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                         context,
                         icon: Icons.folder_open,
                         title: 'Import files',
-                        subtitle: 'Choose images from storage',
+                        subtitle: 'Choose files from storage',
                         onTap: () {
                           Navigator.pop(context);
                           _pickFromFiles();
@@ -937,11 +985,36 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
               controller: PageController(initialPage: initialIndex),
               itemCount: _scanPaths.length,
               itemBuilder: (_, i) {
-                return InteractiveViewer(
-                  child: Image.file(
-                    File(_scanPaths[i]),
-                    fit: BoxFit.contain,
-                    cacheWidth: 1440,
+                final path = _scanPaths[i];
+                if (_isImageAttachment(path)) {
+                  return InteractiveViewer(
+                    child: Image.file(
+                      File(path),
+                      fit: BoxFit.contain,
+                      cacheWidth: 1440,
+                    ),
+                  );
+                }
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _isPdfAttachment(path)
+                              ? Icons.picture_as_pdf
+                              : Icons.insert_drive_file,
+                          size: 64,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '${_isPdfAttachment(path) ? 'PDF' : _getFileExtension(path).toUpperCase()} attachment\n${path.split(Platform.pathSeparator).last}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -999,14 +1072,25 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                         key: ValueKey(path),
                         leading: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(path),
-                            width: 48,
-                            height: 64,
-                            fit: BoxFit.cover,
-                            cacheWidth: 200,
-                            cacheHeight: 260,
-                          ),
+                          child: _isImageAttachment(path)
+                              ? Image.file(
+                                  File(path),
+                                  width: 48,
+                                  height: 64,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: 200,
+                                  cacheHeight: 260,
+                                )
+                              : Container(
+                                  width: 48,
+                                  height: 64,
+                                  color: Colors.grey.shade200,
+                                  child: Icon(
+                                    _isPdfAttachment(path)
+                                        ? Icons.picture_as_pdf
+                                        : Icons.insert_drive_file,
+                                  ),
+                                ),
                         ),
                         title: Text('Page ${index + 1}'),
                         trailing: IconButton(

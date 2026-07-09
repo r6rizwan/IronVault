@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.19
+
+- Added support for attaching and storing broader document files, including PDFs and other non-image formats, in document items.
+- Improved document attachment previews so non-image files are displayed with a file-style preview instead of being treated like images.
+- Updated the app version metadata for the new attachment support.
+
 ## v1.0.18
 
 - Refined recovery-key management and re-authentication behavior.
