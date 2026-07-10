@@ -14,6 +14,7 @@ import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/features/add/screens/add_item_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/utils/attachment_utils.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ViewCredentialScreen extends ConsumerStatefulWidget {
@@ -122,22 +123,32 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                     ),
                   );
                 }
+                if (isPdfAttachment(path)) {
+                  return PDFView(
+                    filePath: path,
+                    fitEachPage: true,
+                    enableSwipe: true,
+                    swipeHorizontal: false,
+                    autoSpacing: true,
+                    pageFling: false,
+                    onError: (_) {},
+                    onPageError: (_, __) {},
+                  );
+                }
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          isPdfAttachment(path)
-                              ? Icons.picture_as_pdf
-                              : Icons.insert_drive_file,
+                        const Icon(
+                          Icons.insert_drive_file,
                           size: 64,
                           color: Colors.white,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          '${isPdfAttachment(path) ? 'PDF' : getFileExtension(path).toUpperCase()} attachment\n${path.split(Platform.pathSeparator).last}',
+                          '${getFileExtension(path).toUpperCase()} attachment\n${path.split(Platform.pathSeparator).last}',
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: Colors.white),
                         ),

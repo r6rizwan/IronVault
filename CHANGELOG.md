@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.21
+
+- Fixed document preview handling for PDF and other non-image attachments so they now render in-app instead of appearing as blank screens or filename-only placeholders.
+- Improved attachment previews for document items with a proper PDF viewer for supported PDF files.
+- Bumped the app version metadata for the attachment preview fix.
+
 ## v1.0.20
 
 - Fixed document preview handling for PDF and other non-image attachments so they no longer appear as blank screens.
