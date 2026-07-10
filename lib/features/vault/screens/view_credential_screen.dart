@@ -13,6 +13,7 @@ import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/features/add/screens/add_item_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
+import 'package:ironvault/core/utils/attachment_utils.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ViewCredentialScreen extends ConsumerStatefulWidget {
@@ -111,11 +112,37 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
               controller: PageController(initialPage: initialIndex),
               itemCount: pages.length,
               itemBuilder: (_, i) {
-                return InteractiveViewer(
-                  child: Image.file(
-                    File(pages[i]),
-                    fit: BoxFit.contain,
-                    cacheWidth: 1440,
+                final path = pages[i];
+                if (isImageAttachment(path)) {
+                  return InteractiveViewer(
+                    child: Image.file(
+                      File(path),
+                      fit: BoxFit.contain,
+                      cacheWidth: 1440,
+                    ),
+                  );
+                }
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isPdfAttachment(path)
+                              ? Icons.picture_as_pdf
+                              : Icons.insert_drive_file,
+                          size: 64,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '${isPdfAttachment(path) ? 'PDF' : getFileExtension(path).toUpperCase()} attachment\n${path.split(Platform.pathSeparator).last}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -172,14 +199,25 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                         key: ValueKey(path),
                         leading: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(path),
-                            width: 48,
-                            height: 64,
-                            fit: BoxFit.cover,
-                            cacheWidth: 200,
-                            cacheHeight: 260,
-                          ),
+                          child: isImageAttachment(path)
+                              ? Image.file(
+                                  File(path),
+                                  width: 48,
+                                  height: 64,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: 200,
+                                  cacheHeight: 260,
+                                )
+                              : Container(
+                                  width: 48,
+                                  height: 64,
+                                  color: Colors.grey.shade200,
+                                  child: Icon(
+                                    isPdfAttachment(path)
+                                        ? Icons.picture_as_pdf
+                                        : Icons.insert_drive_file,
+                                  ),
+                                ),
                         ),
                         title: Text('Page ${index + 1}'),
                         trailing: IconButton(

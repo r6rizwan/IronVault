@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.20
+
+- Fixed document preview handling for PDF and other non-image attachments so they no longer appear as blank screens.
+- Improved attachment previews for document items to show file-style fallback UI for non-image files.
+- Bumped the app version metadata for the attachment preview fix.
+
 ## v1.0.19
 
 - Added support for attaching and storing broader document files, including PDFs and other non-image formats, in document items.

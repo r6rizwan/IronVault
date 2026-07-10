@@ -16,6 +16,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/core/utils/attachment_utils.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/core/widgets/blocking_loading_overlay.dart';
 import 'package:uuid/uuid.dart';
@@ -468,33 +469,18 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     _scheduleDraftSave();
   }
 
-  bool _isPdfAttachment(String path) {
-    return path.toLowerCase().endsWith('.pdf');
-  }
-
-  String _getFileExtension(String path) {
-    final dot = path.lastIndexOf('.');
-    if (dot <= 0 || dot == path.length - 1) return 'bin';
-    return path.substring(dot + 1).toLowerCase();
-  }
-
-  bool _isImageAttachment(String path) {
-    final ext = _getFileExtension(path);
-    return ext == 'jpg' || ext == 'jpeg' || ext == 'png' || ext == 'webp';
-  }
-
   Future<String?> _compressAndMove(String inputPath, String dirPath) async {
     final source = File(inputPath);
     if (!await source.exists()) return null;
 
-    final extension = _isImageAttachment(inputPath)
+    final extension = isImageAttachment(inputPath)
         ? 'jpg'
-        : _getFileExtension(inputPath);
+        : getFileExtension(inputPath);
     final fileName =
         'scan_${DateTime.now().millisecondsSinceEpoch}_${_uuid.v4()}.$extension';
     final targetPath = '$dirPath/$fileName';
     try {
-      if (!_isImageAttachment(inputPath)) {
+      if (!isImageAttachment(inputPath)) {
         await source.copy(targetPath);
         return targetPath;
       }
@@ -620,7 +606,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                     onTap: () => _openScanPreview(context, i),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: _isImageAttachment(path)
+                      child: isImageAttachment(path)
                           ? Image.file(
                               File(path),
                               width: 70,
@@ -637,16 +623,16 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    _isPdfAttachment(path)
+                                    isPdfAttachment(path)
                                         ? Icons.picture_as_pdf
                                         : Icons.insert_drive_file,
                                     size: 28,
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    _isPdfAttachment(path)
+                                    isPdfAttachment(path)
                                         ? 'PDF'
-                                        : _getFileExtension(path).toUpperCase(),
+                                        : getFileExtension(path).toUpperCase(),
                                     style: const TextStyle(fontSize: 11),
                                   ),
                                 ],
@@ -986,7 +972,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
               itemCount: _scanPaths.length,
               itemBuilder: (_, i) {
                 final path = _scanPaths[i];
-                if (_isImageAttachment(path)) {
+                if (isImageAttachment(path)) {
                   return InteractiveViewer(
                     child: Image.file(
                       File(path),
@@ -1002,14 +988,14 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          _isPdfAttachment(path)
+                          isPdfAttachment(path)
                               ? Icons.picture_as_pdf
                               : Icons.insert_drive_file,
                           size: 64,
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          '${_isPdfAttachment(path) ? 'PDF' : _getFileExtension(path).toUpperCase()} attachment\n${path.split(Platform.pathSeparator).last}',
+                          '${isPdfAttachment(path) ? 'PDF' : getFileExtension(path).toUpperCase()} attachment\n${path.split(Platform.pathSeparator).last}',
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: Colors.white),
                         ),
@@ -1072,7 +1058,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                         key: ValueKey(path),
                         leading: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: _isImageAttachment(path)
+                          child: isImageAttachment(path)
                               ? Image.file(
                                   File(path),
                                   width: 48,
@@ -1086,7 +1072,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                                   height: 64,
                                   color: Colors.grey.shade200,
                                   child: Icon(
-                                    _isPdfAttachment(path)
+                                    isPdfAttachment(path)
                                         ? Icons.picture_as_pdf
                                         : Icons.insert_drive_file,
                                   ),
