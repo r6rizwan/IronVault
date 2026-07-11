@@ -50,11 +50,7 @@ const List<ItemTypeDefinition> itemTypes = [
         obscure: true,
         required: true,
       ),
-      FieldDefinition(
-        key: 'notes',
-        label: 'Notes',
-        maxLines: 3,
-      ),
+      FieldDefinition(key: 'notes', label: 'Notes', maxLines: 3),
     ],
   ),
   ItemTypeDefinition(
@@ -63,26 +59,16 @@ const List<ItemTypeDefinition> itemTypes = [
     icon: Icons.account_balance,
     fields: [
       FieldDefinition(key: 'bank_name', label: 'Bank Name', required: true),
+      FieldDefinition(key: 'account_type', label: 'Account Type'),
       FieldDefinition(
         key: 'account_number',
         label: 'Account Number',
         keyboardType: TextInputType.number,
         required: true,
       ),
-      FieldDefinition(
-        key: 'ifsc_code',
-        label: 'IFSC Code',
-        required: true,
-      ),
-      FieldDefinition(
-        key: 'branch_name',
-        label: 'Branch Name',
-      ),
-      FieldDefinition(
-        key: 'notes',
-        label: 'Notes',
-        maxLines: 3,
-      ),
+      FieldDefinition(key: 'ifsc_code', label: 'IFSC Code', required: true),
+      FieldDefinition(key: 'branch_name', label: 'Branch Name'),
+      FieldDefinition(key: 'notes', label: 'Notes', maxLines: 3),
     ],
   ),
   ItemTypeDefinition(
@@ -90,10 +76,7 @@ const List<ItemTypeDefinition> itemTypes = [
     label: 'Card',
     icon: Icons.credit_card,
     fields: [
-      FieldDefinition(
-        key: 'cardholder_name',
-        label: 'Cardholder Name',
-      ),
+      FieldDefinition(key: 'cardholder_name', label: 'Cardholder Name'),
       FieldDefinition(
         key: 'number',
         label: 'Card Number',
@@ -107,21 +90,14 @@ const List<ItemTypeDefinition> itemTypes = [
         obscure: true,
         required: true,
       ),
-      FieldDefinition(
-        key: 'issuer',
-        label: 'Issuer / Bank',
-      ),
+      FieldDefinition(key: 'issuer', label: 'Issuer / Bank'),
       FieldDefinition(
         key: 'cvv',
         label: 'CVV',
         keyboardType: TextInputType.number,
         obscure: true,
       ),
-      FieldDefinition(
-        key: 'notes',
-        label: 'Notes',
-        maxLines: 3,
-      ),
+      FieldDefinition(key: 'notes', label: 'Notes', maxLines: 3),
     ],
   ),
   ItemTypeDefinition(
@@ -129,16 +105,9 @@ const List<ItemTypeDefinition> itemTypes = [
     label: 'Document',
     icon: Icons.badge_outlined,
     fields: [
-      FieldDefinition(
-        key: 'scans',
-        label: 'Scanned Pages',
-      ),
+      FieldDefinition(key: 'scans', label: 'Scanned Pages'),
       FieldDefinition(key: 'document_id', label: 'Document ID'),
-      FieldDefinition(
-        key: 'notes',
-        label: 'Notes',
-        maxLines: 3,
-      ),
+      FieldDefinition(key: 'notes', label: 'Notes', maxLines: 3),
     ],
   ),
   ItemTypeDefinition(
@@ -146,12 +115,7 @@ const List<ItemTypeDefinition> itemTypes = [
     label: 'Secure Note',
     icon: Icons.note_alt_outlined,
     fields: [
-      FieldDefinition(
-        key: 'note',
-        label: 'Note',
-        maxLines: 6,
-        required: true,
-      ),
+      FieldDefinition(key: 'note', label: 'Note', maxLines: 6, required: true),
     ],
   ),
 ];

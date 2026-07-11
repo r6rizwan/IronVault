@@ -47,6 +47,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
   final Map<String, TextEditingController> _controllers = {};
   final Map<String, bool> _obscure = {};
   final List<String> _scanPaths = [];
+  final List<String> _scanNames = [];
   final Map<String, String?> _fieldErrors = {};
 
   String _typeKey = 'password';
@@ -89,6 +90,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         ?.cast<String, dynamic>();
 
     final existingScans = existingFields?['scans'];
+    final existingScanNames = existingFields?['scan_names'];
     if (_scanPaths.isEmpty &&
         existingScans is String &&
         existingScans.isNotEmpty) {
@@ -99,6 +101,17 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         }
       } catch (_) {}
     }
+    if (_scanNames.isEmpty &&
+        existingScanNames is String &&
+        existingScanNames.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(existingScanNames);
+        if (decoded is List) {
+          _scanNames.addAll(decoded.map((e) => e.toString()));
+        }
+      } catch (_) {}
+    }
+    _ensureScanNamesAligned();
 
     for (final field in type.fields) {
       _fieldKeys.putIfAbsent(field.key, () => GlobalKey());
@@ -142,7 +155,33 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       }
       fields[field.key] = _controllers[field.key]?.text.trim() ?? '';
     }
+    if (_typeKey == 'document') {
+      fields['scan_names'] = jsonEncode(_scanNames);
+    }
     return fields;
+  }
+
+  String _defaultAttachmentName(String path) {
+    return path.split(Platform.pathSeparator).last;
+  }
+
+  String _labelFromFileName(String name) {
+    final dot = name.lastIndexOf('.');
+    return dot > 0 ? name.substring(0, dot) : name;
+  }
+
+  void _maybePrefillTitle(String originalName) {
+    if (_titleController.text.trim().isNotEmpty) return;
+    _titleController.text = _labelFromFileName(originalName);
+  }
+
+  void _ensureScanNamesAligned() {
+    while (_scanNames.length < _scanPaths.length) {
+      _scanNames.add(_defaultAttachmentName(_scanPaths[_scanNames.length]));
+    }
+    if (_scanNames.length > _scanPaths.length) {
+      _scanNames.removeRange(_scanPaths.length, _scanNames.length);
+    }
   }
 
   bool _validateFields() {
@@ -219,6 +258,9 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     final scans = (draft['scanPaths'] as List?)
         ?.map((e) => e.toString())
         .toList();
+    final scanNames = (draft['scanNames'] as List?)
+        ?.map((e) => e.toString())
+        .toList();
     final category = draft['selectedCategory']?.toString();
 
     if (draftType.isNotEmpty && draftType != _typeKey) {
@@ -243,6 +285,10 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     _scanPaths
       ..clear()
       ..addAll(scans ?? const []);
+    _scanNames
+      ..clear()
+      ..addAll(scanNames ?? const []);
+    _ensureScanNamesAligned();
 
     _restoringDraft = false;
     if (!mounted) return;
@@ -280,6 +326,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       'selectedCategory': _selectedCategory,
       'fields': _collectFields(),
       'scanPaths': List<String>.from(_scanPaths),
+      'scanNames': List<String>.from(_scanNames),
     };
 
     await storage.writeValue(_draftStorageKey, jsonEncode(draft));
@@ -403,6 +450,8 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       final compressed = await _compressAndMove(path, dir.path);
       if (compressed != null) {
         _scanPaths.add(compressed);
+        _scanNames.add(_defaultAttachmentName(path));
+        _maybePrefillTitle(_defaultAttachmentName(path));
       }
     }
 
@@ -431,6 +480,9 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       final compressed = await _compressAndMove(file.path, dir.path);
       if (compressed != null) {
         _scanPaths.add(compressed);
+        final originalName = file.name;
+        _scanNames.add(originalName);
+        _maybePrefillTitle(originalName);
       }
     }
 
@@ -463,6 +515,8 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
       final copied = await _compressAndMove(path, dir.path);
       if (copied != null) {
         _scanPaths.add(copied);
+        _scanNames.add(file.name);
+        _maybePrefillTitle(file.name);
       }
     }
 
@@ -603,6 +657,9 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (_, i) {
                   final path = _scanPaths[i];
+                  final displayName = i < _scanNames.length
+                      ? _scanNames[i]
+                      : _defaultAttachmentName(path);
                   return GestureDetector(
                     onTap: () => _openScanPreview(context, i),
                     child: ClipRRect(
@@ -631,10 +688,11 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    isPdfAttachment(path)
-                                        ? 'PDF'
-                                        : getFileExtension(path).toUpperCase(),
-                                    style: const TextStyle(fontSize: 11),
+                                    displayName,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 10),
                                   ),
                                 ],
                               ),
@@ -682,7 +740,10 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
               if (_scanPaths.isNotEmpty)
                 TextButton(
                   onPressed: () {
-                    setState(() => _scanPaths.clear());
+                    setState(() {
+                      _scanPaths.clear();
+                      _scanNames.clear();
+                    });
                     _scheduleDraftSave();
                   },
                   child: const Text('Clear'),
@@ -1056,43 +1117,56 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                       setState(() {
                         if (newIndex > oldIndex) newIndex -= 1;
                         final item = _scanPaths.removeAt(oldIndex);
+                        final name = _scanNames.removeAt(oldIndex);
                         _scanPaths.insert(newIndex, item);
+                        _scanNames.insert(newIndex, name);
                       });
                       _scheduleDraftSave();
                     },
                     itemBuilder: (context, index) {
                       final path = _scanPaths[index];
-                      return ListTile(
+                      final displayName = index < _scanNames.length
+                          ? _scanNames[index]
+                          : _defaultAttachmentName(path);
+                      return Padding(
                         key: ValueKey(path),
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: isImageAttachment(path)
-                              ? Image.file(
-                                  File(path),
-                                  width: 48,
-                                  height: 64,
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 200,
-                                  cacheHeight: 260,
-                                )
-                              : Container(
-                                  width: 48,
-                                  height: 64,
-                                  color: Colors.grey.shade200,
-                                  child: Icon(
-                                    isPdfAttachment(path)
-                                        ? Icons.picture_as_pdf
-                                        : Icons.insert_drive_file,
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: isImageAttachment(path)
+                                ? Image.file(
+                                    File(path),
+                                    width: 48,
+                                    height: 64,
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 200,
+                                    cacheHeight: 260,
+                                  )
+                                : Container(
+                                    width: 48,
+                                    height: 64,
+                                    color: Colors.grey.shade200,
+                                    child: Icon(
+                                      isPdfAttachment(path)
+                                          ? Icons.picture_as_pdf
+                                          : Icons.insert_drive_file,
+                                    ),
                                   ),
-                                ),
-                        ),
-                        title: Text('Page ${index + 1}'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () {
-                            setState(() => _scanPaths.removeAt(index));
-                            _scheduleDraftSave();
-                          },
+                          ),
+                          title: Text(displayName),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () {
+                              setState(() {
+                                _scanPaths.removeAt(index);
+                                if (index < _scanNames.length) {
+                                  _scanNames.removeAt(index);
+                                }
+                              });
+                              _scheduleDraftSave();
+                            },
+                          ),
                         ),
                       );
                     },

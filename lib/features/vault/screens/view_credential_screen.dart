@@ -166,6 +166,22 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
 
   void _openScanManager(BuildContext context, List<String> pages) {
     final mutable = List<String>.from(pages);
+    final fields = (item['fields'] as Map?)?.cast<String, dynamic>() ?? {};
+    final rawNames = (fields['scan_names'] ?? '').toString().trim();
+    List<String> mutableNames = [];
+    if (rawNames.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawNames);
+        if (decoded is List) {
+          mutableNames = decoded.map((e) => e.toString()).toList();
+        }
+      } catch (_) {}
+    }
+    while (mutableNames.length < mutable.length) {
+      mutableNames.add(
+        mutable[mutableNames.length].split(Platform.pathSeparator).last,
+      );
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -201,41 +217,50 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                       setState(() {
                         if (newIndex > oldIndex) newIndex -= 1;
                         final item = mutable.removeAt(oldIndex);
+                        final name = mutableNames.removeAt(oldIndex);
                         mutable.insert(newIndex, item);
+                        mutableNames.insert(newIndex, name);
                       });
                     },
                     itemBuilder: (context, index) {
                       final path = mutable[index];
-                      return ListTile(
+                      final displayName = mutableNames[index];
+                      return Padding(
                         key: ValueKey(path),
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: isImageAttachment(path)
-                              ? Image.file(
-                                  File(path),
-                                  width: 48,
-                                  height: 64,
-                                  fit: BoxFit.cover,
-                                  cacheWidth: 200,
-                                  cacheHeight: 260,
-                                )
-                              : Container(
-                                  width: 48,
-                                  height: 64,
-                                  color: Colors.grey.shade200,
-                                  child: Icon(
-                                    isPdfAttachment(path)
-                                        ? Icons.picture_as_pdf
-                                        : Icons.insert_drive_file,
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: isImageAttachment(path)
+                                ? Image.file(
+                                    File(path),
+                                    width: 48,
+                                    height: 64,
+                                    fit: BoxFit.cover,
+                                    cacheWidth: 200,
+                                    cacheHeight: 260,
+                                  )
+                                : Container(
+                                    width: 48,
+                                    height: 64,
+                                    color: Colors.grey.shade200,
+                                    child: Icon(
+                                      isPdfAttachment(path)
+                                          ? Icons.picture_as_pdf
+                                          : Icons.insert_drive_file,
+                                    ),
                                   ),
-                                ),
-                        ),
-                        title: Text('Page ${index + 1}'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () {
-                            setState(() => mutable.removeAt(index));
-                          },
+                          ),
+                          title: Text(displayName),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () {
+                              setState(() {
+                                mutable.removeAt(index);
+                                mutableNames.removeAt(index);
+                              });
+                            },
+                          ),
                         ),
                       );
                     },
@@ -251,6 +276,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                         (item['fields'] as Map).cast<String, String>(),
                       );
                       fields['scans'] = jsonEncode(mutable);
+                      fields['scan_names'] = jsonEncode(mutableNames);
                       await repo.updateItem(
                         id: item['id'],
                         type: item['type'],
@@ -531,6 +557,549 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     );
   }
 
+  String _formatDate(DateTime? value) {
+    if (value == null) return '';
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${value.day} ${months[value.month - 1]} ${value.year}';
+  }
+
+  Set<String> _heroFieldKeys(String typeKey) {
+    switch (typeKey) {
+      case 'password':
+        return {'username', 'password'};
+      case 'card':
+        return {'cardholder_name', 'number', 'expiry', 'issuer'};
+      case 'bank':
+        return {
+          'bank_name',
+          'account_type',
+          'account_number',
+          'ifsc_code',
+          'branch_name',
+        };
+      case 'document':
+        return {'scans', 'document_id'};
+      case 'note':
+        return {'note'};
+      default:
+        return {};
+    }
+  }
+
+  Widget _summaryPill({
+    required IconData icon,
+    required String label,
+    Color? color,
+  }) {
+    final tint = color ?? Theme.of(context).colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: tint),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: tint,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryCard(ItemTypeDefinition typeDef) {
+    final category = (item["category"] ?? "").toString().trim();
+    final createdAt = item['createdAt'] as DateTime?;
+    final updatedAt = item['updatedAt'] as DateTime?;
+    final dateLabel = _formatDate(updatedAt ?? createdAt);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.06),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.12),
+                child: Icon(
+                  typeDef.icon,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (item["title"] ?? "").toString(),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      typeDef.label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppThemeColors.textMuted(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (item["isFavorite"] == true)
+                const Icon(Icons.star_rounded, color: Colors.amber),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _summaryPill(icon: typeDef.icon, label: typeDef.label),
+              if (category.isNotEmpty)
+                _summaryPill(
+                  icon: Icons.folder_open_rounded,
+                  label: category,
+                  color: Colors.teal,
+                ),
+              if (dateLabel.isNotEmpty)
+                _summaryPill(
+                  icon: Icons.schedule_rounded,
+                  label: dateLabel,
+                  color: Colors.indigo,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroStat(String label, String value) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppThemeColors.textMuted(context),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroValueCard({
+    required String label,
+    required String value,
+    bool obscure = false,
+    String? copyKey,
+  }) {
+    final isObscure = obscure;
+    final obscureState = copyKey != null
+        ? (_obscureFields[copyKey] ?? true)
+        : false;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: 0.05),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppThemeColors.textMuted(context),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isObscure && obscureState ? '•' * 12 : value,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (copyKey != null && isObscure)
+            IconButton(
+              icon: Icon(
+                obscureState ? Icons.visibility : Icons.visibility_off,
+                size: 22,
+              ),
+              onPressed: () {
+                setState(() {
+                  _obscureFields[copyKey] = !obscureState;
+                });
+              },
+            ),
+          if (copyKey != null)
+            IconButton(
+              icon: Icon(
+                _copiedKey == copyKey
+                    ? Icons.check
+                    : _clipboardDisabled
+                    ? Icons.lock_outline
+                    : Icons.copy,
+                color: _copiedKey == copyKey
+                    ? Colors.green
+                    : (_clipboardDisabled ? Colors.grey : null),
+              ),
+              onPressed: _copiedKey == copyKey || _clipboardDisabled
+                  ? null
+                  : () => _copyValue(copyKey, value),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _documentHero(Map<String, dynamic> fields) {
+    final raw = (fields['scans'] ?? '').toString().trim();
+    final docId = (fields['document_id'] ?? '').toString().trim();
+    List<String> pages = [];
+    List<String> names = [];
+    if (raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          pages = decoded.map((e) => e.toString()).toList();
+        }
+      } catch (_) {}
+    }
+    final rawNames = (fields['scan_names'] ?? '').toString().trim();
+    if (rawNames.isNotEmpty) {
+      try {
+        final decodedNames = jsonDecode(rawNames);
+        if (decodedNames is List) {
+          names = decodedNames.map((e) => e.toString()).toList();
+        }
+      } catch (_) {}
+    }
+    while (names.length < pages.length) {
+      names.add(pages[names.length].split(Platform.pathSeparator).last);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (pages.isNotEmpty) ...[
+          _sectionTitle('Attachments'),
+          SizedBox(
+            height: 112,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: pages.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) {
+                final path = pages[i];
+                final displayName = names[i];
+                return GestureDetector(
+                  onTap: () => _openScanPreview(context, pages, i),
+                  child: Container(
+                    width: 112,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                          color: Colors.black.withValues(alpha: 0.05),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (isImageAttachment(path))
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                File(path),
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                cacheWidth: 280,
+                                cacheHeight: 280,
+                              ),
+                            ),
+                          )
+                        else ...[
+                          Icon(
+                            isPdfAttachment(path)
+                                ? Icons.picture_as_pdf
+                                : Icons.insert_drive_file,
+                            size: 32,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        const SizedBox(height: 8),
+                        Text(
+                          displayName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        Row(
+          children: [
+            _heroStat('Files', pages.length.toString()),
+            const SizedBox(width: 12),
+            _heroStat('Document ID', docId.isEmpty ? 'Not added' : docId),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _passwordHero(Map<String, dynamic> fields) {
+    final username = (fields['username'] ?? '').toString().trim();
+    final password = (fields['password'] ?? '').toString().trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (username.isNotEmpty) ...[
+          _sectionTitle('Account'),
+          _heroValueCard(
+            label: 'Username / Email',
+            value: username,
+            copyKey: 'username',
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (password.isNotEmpty) ...[
+          _sectionTitle('Password'),
+          _heroValueCard(
+            label: 'Password',
+            value: password,
+            obscure: true,
+            copyKey: 'password',
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _cardHero(Map<String, dynamic> fields) {
+    final number = (fields['number'] ?? '').toString().trim();
+    final cardholder = (fields['cardholder_name'] ?? '').toString().trim();
+    final expiry = (fields['expiry'] ?? '').toString().trim();
+    final issuer = (fields['issuer'] ?? '').toString().trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (number.isNotEmpty) ...[
+          _sectionTitle('Card'),
+          _heroValueCard(
+            label: 'Card Number',
+            value: number,
+            obscure: true,
+            copyKey: 'number',
+          ),
+          const SizedBox(height: 12),
+        ],
+        Row(
+          children: [
+            _heroStat(
+              'Cardholder',
+              cardholder.isEmpty ? 'Not added' : cardholder,
+            ),
+            const SizedBox(width: 12),
+            _heroStat('Expiry', expiry.isEmpty ? 'Not added' : expiry),
+          ],
+        ),
+        if (issuer.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _heroStat('Issuer / Bank', issuer),
+        ],
+      ],
+    );
+  }
+
+  Widget _bankHero(Map<String, dynamic> fields) {
+    final bankName = (fields['bank_name'] ?? '').toString().trim();
+    final accountType = (fields['account_type'] ?? '').toString().trim();
+    final accountNumber = (fields['account_number'] ?? '').toString().trim();
+    final ifsc = (fields['ifsc_code'] ?? '').toString().trim();
+    final branch = (fields['branch_name'] ?? '').toString().trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _heroStat('Bank', bankName.isEmpty ? 'Not added' : bankName),
+            const SizedBox(width: 12),
+            _heroStat('Branch', branch.isEmpty ? 'Not added' : branch),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            _heroStat(
+              'Account Type',
+              accountType.isEmpty ? 'Not added' : accountType,
+            ),
+            const SizedBox(width: 12),
+            _heroStat('IFSC Code', ifsc.isEmpty ? 'Not added' : ifsc),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (accountNumber.isNotEmpty)
+          _heroValueCard(
+            label: 'Account Number',
+            value: accountNumber,
+            copyKey: 'account_number',
+          ),
+      ],
+    );
+  }
+
+  Widget _noteHero(Map<String, dynamic> fields) {
+    final note = (fields['note'] ?? '').toString().trim();
+    if (note.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Note'),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+                color: Colors.black.withValues(alpha: 0.05),
+              ),
+            ],
+          ),
+          child: Text(
+            note,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeroSection(String typeKey, Map<String, dynamic> fields) {
+    switch (typeKey) {
+      case 'password':
+        return _passwordHero(fields);
+      case 'card':
+        return _cardHero(fields);
+      case 'bank':
+        return _bankHero(fields);
+      case 'document':
+        return _documentHero(fields);
+      case 'note':
+        return _noteHero(fields);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFav = (item["isFavorite"] == true);
@@ -622,23 +1191,42 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionTitle("Type"),
-            _infoTile(value: typeDef.label),
+            _summaryCard(typeDef),
+            const SizedBox(height: 18),
+            _buildHeroSection(typeKey, fields),
 
             ...typeDef.fields.map((field) {
+              if (_heroFieldKeys(typeKey).contains(field.key)) {
+                return const SizedBox.shrink();
+              }
               if (field.key == 'scans') {
                 final raw = (fields['scans'] ?? '').toString();
                 if (raw.trim().isEmpty) return const SizedBox.shrink();
                 int count = 0;
                 List<String> pages = [];
+                List<String> names = [];
                 try {
                   final decoded = jsonDecode(raw);
                   if (decoded is List) {
                     pages = decoded.map((e) => e.toString()).toList();
                     count = pages.length;
                   }
+                  final rawNames = (fields['scan_names'] ?? '')
+                      .toString()
+                      .trim();
+                  if (rawNames.isNotEmpty) {
+                    final decodedNames = jsonDecode(rawNames);
+                    if (decodedNames is List) {
+                      names = decodedNames.map((e) => e.toString()).toList();
+                    }
+                  }
                 } catch (_) {}
                 if (count == 0) return const SizedBox.shrink();
+                while (names.length < pages.length) {
+                  names.add(
+                    pages[names.length].split(Platform.pathSeparator).last,
+                  );
+                }
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -653,17 +1241,58 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                         separatorBuilder: (_, __) => const SizedBox(width: 10),
                         itemBuilder: (_, i) {
                           final path = pages[i];
+                          final displayName = names[i];
                           return GestureDetector(
                             onTap: () => _openScanPreview(context, pages, i),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(
-                                File(path),
-                                width: 70,
-                                height: 90,
-                                fit: BoxFit.cover,
-                                cacheWidth: 240,
-                                cacheHeight: 320,
+                            child: Container(
+                              width: 70,
+                              height: 90,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                color: Theme.of(context).cardColor,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: isImageAttachment(path)
+                                    ? Image.file(
+                                        File(path),
+                                        fit: BoxFit.cover,
+                                        cacheWidth: 240,
+                                        cacheHeight: 320,
+                                      )
+                                    : Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            isPdfAttachment(path)
+                                                ? Icons.picture_as_pdf
+                                                : Icons.insert_drive_file,
+                                            size: 28,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                            ),
+                                            child: Text(
+                                              displayName,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: AppThemeColors.textMuted(
+                                                  context,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                               ),
                             ),
                           );

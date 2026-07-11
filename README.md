@@ -19,6 +19,8 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Password Health offers actionable review cards and deep links into affected vault items.
 - Draft restore and keep/discard prompts protect unsaved work after lock or interruption.
 - Privacy, backup, and update-check behavior were tightened for everyday use.
+- Bank account details now render account type and related fields correctly in the credential detail screen.
+- Document attachments preserve original filenames and support clearer in-app preview and management flows.
 
 ## Key Features
 - Vault item types:
@@ -101,7 +103,7 @@ Output paths:
 Version is maintained in `pubspec.yaml`:
 - `versionName` comes from `version`
 - `versionCode` comes from the build number suffix
-- Current release target: `1.0.18+19`
+- Current release target: `1.0.22+23`
 
 Use Git tags for releases:
 - Tags follow the app version format in `pubspec.yaml` (for example `v1.0.18`).

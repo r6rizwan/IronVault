@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.22
+
+- Improved the credential detail screen with a shared summary block and type-specific hero sections for passwords, cards, bank accounts, documents, and secure notes.
+- Fixed bank account detail rendering so account type and related fields display correctly in the detail screen.
+- Preserved original document attachment filenames and now show them across add, manage, and detail views instead of generated storage names.
+- Auto-filled the document label from the first picked attachment name when the label is empty.
+- Added spacing polish to the document `Manage pages` bottom sheet for clearer file separation.
+
 ## v1.0.21
 
 - Fixed document preview handling for PDF and other non-image attachments so they now render in-app instead of appearing as blank screens or filename-only placeholders.
