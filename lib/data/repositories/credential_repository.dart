@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../db/app_db.dart';
@@ -61,21 +62,23 @@ class CredentialRepository {
 
     final now = DateTime.now();
 
-    await db.into(db.credentials).insert(
-      CredentialsCompanion.insert(
-        id: _uuid.v4(),
-        title: encTitle,
-        username: encUsername,
-        password: encPassword,
-        notes: Value(encNotes),
-        category: Value(encCategory),
-        itemType: Value(type),
-        data: Value(encData),
-        isFavorite: const Value(false),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
+    await db
+        .into(db.credentials)
+        .insert(
+          CredentialsCompanion.insert(
+            id: _uuid.v4(),
+            title: encTitle,
+            username: encUsername,
+            password: encPassword,
+            notes: Value(encNotes),
+            category: Value(encCategory),
+            itemType: Value(type),
+            data: Value(encData),
+            isFavorite: const Value(false),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
   }
 
   /// Add item with extra metadata (used for imports).
@@ -108,21 +111,23 @@ class CredentialRepository {
 
     final now = DateTime.now();
 
-    await db.into(db.credentials).insert(
-      CredentialsCompanion.insert(
-        id: _uuid.v4(),
-        title: encTitle,
-        username: encUsername,
-        password: encPassword,
-        notes: Value(encNotes),
-        category: Value(encCategory),
-        itemType: Value(type),
-        data: Value(encData),
-        isFavorite: Value(isFavorite),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
+    await db
+        .into(db.credentials)
+        .insert(
+          CredentialsCompanion.insert(
+            id: _uuid.v4(),
+            title: encTitle,
+            username: encUsername,
+            password: encPassword,
+            notes: Value(encNotes),
+            category: Value(encCategory),
+            itemType: Value(type),
+            data: Value(encData),
+            isFavorite: Value(isFavorite),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
   }
 
   /// Backward-compatible password credential add
@@ -227,12 +232,8 @@ class CredentialRepository {
     await (db.update(db.credentials)..where((tbl) => tbl.id.equals(id))).write(
       CredentialsCompanion(
         title: Value(EncryptionUtil.encrypt(title, key)),
-        username: Value(
-          EncryptionUtil.encrypt(fields['username'] ?? '', key),
-        ),
-        password: Value(
-          EncryptionUtil.encrypt(fields['password'] ?? '', key),
-        ),
+        username: Value(EncryptionUtil.encrypt(fields['username'] ?? '', key)),
+        password: Value(EncryptionUtil.encrypt(fields['password'] ?? '', key)),
         notes: Value(() {
           final notes = fields['notes'];
           if (notes == null || notes.trim().isEmpty) return null;
@@ -274,7 +275,37 @@ class CredentialRepository {
 
   /// Delete a credential
   Future<void> deleteCredential(String id) async {
-    await (db.delete(db.credentials)..where((tbl) => tbl.id.equals(id))).go();
+    final key = await _requireMasterKey();
+    final row = await (db.select(
+      db.credentials,
+    )..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
+
+    if (row != null) {
+      try {
+        final decoded = EncryptionUtil.decrypt(row.data!, key);
+        final fields = jsonDecode(decoded) as Map<String, dynamic>;
+        final type = row.itemType;
+        final scansRaw = fields['scans']?.toString().trim() ?? '';
+
+        if (type == 'document' && scansRaw.isNotEmpty) {
+          try {
+            final decodedScans = jsonDecode(scansRaw);
+            if (decodedScans is List) {
+              for (final scan in decodedScans) {
+                final path = scan.toString();
+                if (path.isEmpty) continue;
+                final file = File(path);
+                if (await file.exists()) {
+                  await file.delete();
+                }
+              }
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+
+      await (db.delete(db.credentials)..where((tbl) => tbl.id.equals(id))).go();
+    }
   }
 
   /// Clear category references for items that match a category name.

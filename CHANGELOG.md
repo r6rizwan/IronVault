@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.23
+
+- Fixed a bug, now deleting a vault item will also remove the attachment files from storage.
+
 ## v1.0.22
 
 - Improved the credential detail screen with a shared summary block and type-specific hero sections for passwords, cards, bank accounts, documents, and secure notes.
