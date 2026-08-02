@@ -1,6 +1,12 @@
 name: Release APK
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (for example v1.0.24)'
+        required: true
+        type: string
   push:
     tags:
       - "v*"
@@ -11,6 +17,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
     steps:
       - name: Checkout repository
@@ -56,7 +64,7 @@ jobs:
       - name: Stage release APK for GitHub Release
         run: |
           set -euo pipefail
-          TAG="${{ github.ref_name }}"
+          TAG="${RELEASE_TAG}"
           DEST="build/app/outputs/apk/release/ironvault-${TAG}.apk"
           mkdir -p build/app/outputs/apk/release
           # Prefer the Gradle variant output (same signing as the configured release variant).
@@ -75,7 +83,7 @@ jobs:
 
       - name: Verify APK (package + version + keystore)
         run: |
-          APK="build/app/outputs/apk/release/ironvault-${{ github.ref_name }}.apk"
+          APK="build/app/outputs/apk/release/ironvault-${RELEASE_TAG}.apk"
           ls -la "$APK"
           SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           APKSIGNER="$(find "$SDK" -path '*/build-tools/*/apksigner' 2>/dev/null | sort -V | tail -1)"
@@ -97,11 +105,11 @@ jobs:
             $0 == "## " tag { found=1; next }
             found && /^## / { exit }
             found { print }
-          ' tag="${{ github.ref_name }}" CHANGELOG.md | sed '/./,$!d' > release_notes.md
+          ' tag="${RELEASE_TAG}" CHANGELOG.md | sed '/./,$!d' > release_notes.md
 
       - name: Create GitHub Release and upload APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           body_path: release_notes.md
-          files: build/app/outputs/apk/release/ironvault-${{ github.ref_name }}.apk
+          files: build/app/outputs/apk/release/ironvault-${{ env.RELEASE_TAG }}.apk
