@@ -184,15 +184,22 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     }
   }
 
+  String _effectiveTitle() {
+    if (_typeKey == 'bank') {
+      return _controllers['bank_name']?.text.trim() ?? '';
+    }
+    return _titleController.text.trim();
+  }
+
   bool _validateFields() {
     final type = typeByKey(_typeKey);
-    final title = _titleController.text.trim();
+    final title = _effectiveTitle();
     bool ok = true;
     _fieldErrors.clear();
     _titleError = null;
     _documentError = null;
 
-    if (title.isEmpty) {
+    if (_typeKey != 'bank' && title.isEmpty) {
       _titleError = 'Label is required';
       ok = false;
     }
@@ -573,12 +580,13 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     final repo = ref.read(credentialRepoProvider);
     final fields = _collectFields();
     final category = _typeKey == 'password' ? _selectedCategory : null;
+    final title = _effectiveTitle();
 
     try {
       if (widget.existingItem == null) {
         await repo.addItem(
           type: _typeKey,
-          title: _titleController.text.trim(),
+          title: title,
           fields: fields,
           category: category,
         );
@@ -586,7 +594,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
         await repo.updateItem(
           id: widget.existingItem!['id'],
           type: _typeKey,
-          title: _titleController.text.trim(),
+          title: title,
           fields: fields,
           category: category,
         );
@@ -1302,16 +1310,18 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        KeyedSubtree(
-                          key: _titleKey,
-                          child: CommonTextField(
-                            label: 'Label',
-                            controller: _titleController,
-                            requiredField: true,
-                            errorText: _titleError,
+                        if (_typeKey != 'bank') ...[
+                          KeyedSubtree(
+                            key: _titleKey,
+                            child: CommonTextField(
+                              label: 'Label',
+                              controller: _titleController,
+                              requiredField: true,
+                              errorText: _titleError,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 16),
+                          const SizedBox(height: 16),
+                        ],
 
                         if (_typeKey == 'password') ...[
                           _dropdownField(

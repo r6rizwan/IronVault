@@ -39,6 +39,9 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
   bool _loading = false;
   List<Map<String, dynamic>> _items = [];
   late final ProviderSubscription<int> _refreshSub;
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   SortOption _sortBy = SortOption.favoritesFirst;
 
@@ -56,6 +59,8 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
     _refreshSub.close();
     super.dispose();
   }
@@ -233,6 +238,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
 
   void openSortSheetFromParent() => _openSortSheet();
 
+
   ListTile _buildSortTile(
     BuildContext ctx,
     String text,
@@ -261,6 +267,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
     final itemIdFilter = widget.itemIdFilter;
     final hasItemIdFilter = itemIdFilter != null && itemIdFilter.isNotEmpty;
     final filteredItems = _items.where((item) {
+      // category filter
       final category = categoryFilter;
       if (category != null && category.isNotEmpty) {
         if ((item["category"] ?? "").toString().toLowerCase() !=
@@ -268,8 +275,22 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
           return false;
         }
       }
+      // item-id filter (Password Health deep link)
       if (hasItemIdFilter &&
           !itemIdFilter.contains((item["id"] ?? '').toString())) {
+        return false;
+      }
+      // inline search filter
+      final q = _searchQuery.toLowerCase();
+      if (q.isNotEmpty) {
+        if (item["title"]?.toString().toLowerCase().contains(q) == true) {
+          return true;
+        }
+        final fields =
+            (item["fields"] as Map?)?.cast<String, dynamic>() ?? {};
+        for (final v in fields.values) {
+          if (v?.toString().toLowerCase().contains(q) == true) return true;
+        }
         return false;
       }
       return true;
@@ -319,167 +340,258 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                   ),
                 )
               : GestureDetector(
-                  onTap: () {
-                    FocusScope.of(context).unfocus();
-                  },
+                  onTap: () => FocusScope.of(context).unfocus(),
                   behavior: HitTestBehavior.translucent,
                   child: RefreshIndicator(
                     onRefresh: _loadCredentials,
-                    child: filteredItems.isEmpty
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-                            children: [
-                              const SizedBox(height: 4),
-                              SizedBox(
-                                height: 420,
-                                child: EmptyState(
-                                  icon: hasItemIdFilter
-                                      ? Icons.health_and_safety_outlined
-                                      : Icons.lock_open_rounded,
-                                  title:
-                                      widget.emptyTitle ?? "Your vault is empty",
-                                  subtitle:
-                                      widget.emptySubtitle ??
-                                      "Add your first item to start storing passwords, notes, cards, and documents.",
+                    child: CustomScrollView(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        // ── Inline search bar ──────────────────────
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black
+                                        .withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: (val) {
+                                  setState(
+                                    () => _searchQuery = val.trim(),
+                                  );
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                },
+                                decoration: InputDecoration(
+                                  hintText: 'Search vault…',
+                                  prefixIcon: const Icon(
+                                    Icons.search_rounded,
+                                  ),
+                                  suffixIcon: _searchQuery.isEmpty
+                                      ? null
+                                      : IconButton(
+                                          icon: const Icon(Icons.close),
+                                          onPressed: () {
+                                            _searchController.clear();
+                                            setState(
+                                              () => _searchQuery = '',
+                                            );
+                                          },
+                                        ),
+                                  filled: true,
+                                  fillColor: Theme.of(context).cardColor,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                    horizontal: 4,
+                                  ),
                                 ),
                               ),
-                            ],
+                            ),
+                          ),
+                        ),
+
+                        // ── Empty state ────────────────────────────
+                        if (filteredItems.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                16, 0, 16, 120,
+                              ),
+                              child: EmptyState(
+                                icon: _searchQuery.isNotEmpty
+                                    ? Icons.search_off_rounded
+                                    : hasItemIdFilter
+                                        ? Icons.health_and_safety_outlined
+                                        : Icons.lock_open_rounded,
+                                title: _searchQuery.isNotEmpty
+                                    ? 'No results for "$_searchQuery"'
+                                    : widget.emptyTitle ??
+                                        'Your vault is empty',
+                                subtitle: _searchQuery.isNotEmpty
+                                    ? 'Try a different keyword.'
+                                    : widget.emptySubtitle ??
+                                        'Add your first item to start storing passwords, notes, cards, and documents.',
+                              ),
+                            ),
                           )
-                        : ListView.separated(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-                            itemCount: filteredItems.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (_, index) {
-                              final item = filteredItems[index];
-                              final isFav = item["isFavorite"] == true;
+                        // ── Item list ──────────────────────────────
+                        else
+                          SliverPadding(
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                            sliver: SliverList.separated(
+                              itemCount: filteredItems.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (_, index) {
+                                final item = filteredItems[index];
+                                final isFav = item["isFavorite"] == true;
 
-                              return InkWell(
-                                borderRadius: BorderRadius.circular(18),
-                                onTap: () async {
-                                  final _ = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          ViewCredentialScreen(item: item),
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(18),
+                                  onTap: () async {
+                                    final savedOffset =
+                                        _scrollController.hasClients
+                                            ? _scrollController.offset
+                                            : 0.0;
+                                    final _ = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            ViewCredentialScreen(item: item),
+                                      ),
+                                    );
+                                    if (mounted) {
+                                      await _loadCredentials();
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback((_) {
+                                        if (_scrollController.hasClients) {
+                                          _scrollController.jumpTo(
+                                            savedOffset.clamp(
+                                              0.0,
+                                              _scrollController
+                                                  .position.maxScrollExtent,
+                                            ),
+                                          );
+                                        }
+                                      });
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).cardColor,
+                                      borderRadius:
+                                          BorderRadius.circular(18),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          blurRadius: 12,
+                                          spreadRadius: 1,
+                                          color: Colors.black12.withValues(
+                                            alpha: 0.05,
+                                          ),
+                                          offset: const Offset(0, 6),
+                                        ),
+                                      ],
                                     ),
-                                  );
-                                  if (mounted) await _loadCredentials();
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).cardColor,
-                                    borderRadius: BorderRadius.circular(18),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        blurRadius: 12,
-                                        spreadRadius: 1,
-                                        color: Colors.black12.withValues(
-                                          alpha: 0.05,
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 22,
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .primary
+                                              .withValues(alpha: 0.12),
+                                          child: Icon(
+                                            typeByKey(
+                                              item['type'] ?? 'password',
+                                            ).icon,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                          ),
                                         ),
-                                        offset: const Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 22,
-                                        backgroundColor: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.12),
-                                        child: Icon(
-                                          typeByKey(
-                                            item['type'] ?? 'password',
-                                          ).icon,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 14),
-
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    item["title"],
-                                                    style: const TextStyle(
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.w700,
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      item["title"],
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            if (_subtitleForItem(
-                                              item,
-                                            ).trim().isNotEmpty)
-                                              Text(
-                                                _subtitleForItem(item),
-                                                style: TextStyle(
-                                                  color: Colors.grey.shade600,
-                                                  fontSize: 13,
-                                                ),
+                                                ],
                                               ),
-                                            if (item["category"] != null &&
-                                                item["category"]
-                                                    .toString()
-                                                    .trim()
-                                                    .isNotEmpty)
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.only(
-                                                      top: 4,
-                                                    ),
-                                                child: Text(
-                                                  item["category"],
+                                              const SizedBox(height: 4),
+                                              if (_subtitleForItem(
+                                                item,
+                                              ).trim().isNotEmpty)
+                                                Text(
+                                                  _subtitleForItem(item),
                                                   style: TextStyle(
                                                     color:
-                                                        Colors.grey.shade500,
-                                                    fontSize: 12,
+                                                        Colors.grey.shade600,
+                                                    fontSize: 13,
                                                   ),
                                                 ),
-                                              ),
-                                          ],
+                                              if (item["category"] != null &&
+                                                  item["category"]
+                                                      .toString()
+                                                      .trim()
+                                                      .isNotEmpty)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                    top: 4,
+                                                  ),
+                                                  child: Text(
+                                                    item["category"],
+                                                    style: TextStyle(
+                                                      color:
+                                                          Colors.grey.shade500,
+                                                      fontSize: 12,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-
-                                      IconButton(
-                                        onPressed: () => _toggleFavorite(item),
-                                        icon: Icon(
-                                          isFav
-                                              ? Icons.star_rounded
-                                              : Icons.star_border_rounded,
-                                          color: isFav
-                                              ? Colors.amber
-                                              : Colors.grey,
-                                          size: 24,
+                                        IconButton(
+                                          onPressed: () =>
+                                              _toggleFavorite(item),
+                                          icon: Icon(
+                                            isFav
+                                                ? Icons.star_rounded
+                                                : Icons.star_border_rounded,
+                                            color: isFav
+                                                ? Colors.amber
+                                                : Colors.grey,
+                                            size: 24,
+                                          ),
                                         ),
-                                      ),
-
-                                      Icon(
-                                        Icons.arrow_forward_ios,
-                                        size: 16,
-                                        color: Colors.grey.shade400,
-                                      ),
-                                    ],
+                                        Icon(
+                                          Icons.arrow_forward_ios,
+                                          size: 16,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
+                      ],
+                    ),
                   ),
                 );
         },

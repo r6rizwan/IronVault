@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.24
+
+- Minor bug fixes and stability improvements for this release.
+
 ## v1.0.23
 
 - Fixed a bug, now deleting a vault item will also remove the attachment files from storage.

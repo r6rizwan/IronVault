@@ -36,6 +36,15 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
   final Map<String, bool> _obscureFields = {};
   bool _clipboardDisabled = false;
 
+  String _displayTitle() {
+    final fields = (item['fields'] as Map?)?.cast<String, dynamic>() ?? {};
+    if (item['type'] == 'bank') {
+      final bankName = (fields['bank_name'] ?? '').toString().trim();
+      if (bankName.isNotEmpty) return bankName;
+    }
+    return (item['title'] ?? '').toString();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -333,7 +342,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
         <String, dynamic>{};
 
     final entries = <_ShareEntry>[
-      _ShareEntry(label: 'Title', value: (item["title"] ?? "").toString()),
+      _ShareEntry(label: 'Title', value: _displayTitle()),
       _ShareEntry(label: 'Type', value: typeDef.label),
     ];
 
@@ -493,7 +502,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
       await SharePlus.instance.share(
         ShareParams(
           text: shareText.trim().isEmpty ? null : shareText,
-          subject: (item["title"] ?? "Credential").toString(),
+          subject: _displayTitle().isEmpty ? "Credential" : _displayTitle(),
           files: shareFiles,
         ),
       );
@@ -671,7 +680,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      (item["title"] ?? "").toString(),
+                      _displayTitle(),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -1112,7 +1121,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          item["title"],
+          _displayTitle(),
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         elevation: 0,
@@ -1141,48 +1150,69 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
               }
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            tooltip: "Share",
-            onPressed: _shareCredential,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            tooltip: "Delete",
-            onPressed: () async {
-              final confirm = await showDialog(
-                context: context,
-                builder: (_) {
-                  return AlertDialog(
-                    title: const Text("Delete Item"),
-                    content: const Text(
-                      "Are you sure you want to permanently delete this item?",
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text("Cancel"),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded),
+            tooltip: "More options",
+            onSelected: (val) async {
+              if (val == 'share') {
+                _shareCredential();
+              } else if (val == 'delete') {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) {
+                    return AlertDialog(
+                      title: const Text("Delete Item"),
+                      content: const Text(
+                        "Are you sure you want to permanently delete this item?",
                       ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text(
-                          "Delete",
-                          style: TextStyle(color: Colors.red),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text("Cancel"),
                         ),
-                      ),
-                    ],
-                  );
-                },
-              );
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text(
+                            "Delete",
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
 
-              if (confirm == true) {
-                final repo = ref.read(credentialRepoProvider);
-                await repo.deleteCredential(item["id"]);
-                ref.read(vaultRefreshProvider.notifier).state++;
+                if (confirm == true) {
+                  final repo = ref.read(credentialRepoProvider);
+                  await repo.deleteCredential(item["id"]);
+                  ref.read(vaultRefreshProvider.notifier).state++;
 
-                if (mounted) Navigator.pop(context);
+                  if (mounted) Navigator.pop(context);
+                }
               }
             },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem<String>(
+                value: 'share',
+                child: Row(
+                  children: [
+                    Icon(Icons.share_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('Share'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    SizedBox(width: 12),
+                    Text('Delete', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

@@ -18,7 +18,7 @@ import 'package:ironvault/core/navigation/global_nav.dart';
 import 'package:ironvault/features/auth/screens/welcome_screen.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_screen.dart';
 
-enum AppPage { home, vault, search, settings }
+enum AppPage { home, vault, settings }
 
 class AppScaffold extends ConsumerStatefulWidget {
   const AppScaffold({super.key});
@@ -174,10 +174,8 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
         return 0;
       case AppPage.vault:
         return 1;
-      case AppPage.search:
-        return 2;
       case AppPage.settings:
-        return 3;
+        return 2;
     }
   }
 
@@ -188,8 +186,6 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       case 1:
         return AppPage.vault;
       case 2:
-        return AppPage.search;
-      case 3:
         return AppPage.settings;
       default:
         return AppPage.home;
@@ -202,8 +198,6 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
         return 'IronVault';
       case AppPage.vault:
         return 'Vault';
-      case AppPage.search:
-        return 'Search';
       case AppPage.settings:
         return 'Settings';
     }
@@ -212,18 +206,6 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
   List<Widget> _actionsForPage(BuildContext context, AppPage page) {
     if (page == AppPage.vault) {
       return [
-        IconButton(
-          icon: const Icon(Icons.search),
-          tooltip: "Search",
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const SearchScreen(showAppBar: true),
-              ),
-            );
-          },
-        ),
         IconButton(
           icon: const Icon(Icons.swap_vert_rounded),
           tooltip: "Sort",
@@ -268,6 +250,11 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
           },
         ),
         IconButton(
+          icon: const Icon(Icons.search_rounded),
+          tooltip: "Search",
+          onPressed: () => _showSearchSheet(context),
+        ),
+        IconButton(
           icon: const Icon(Icons.lock_outline),
           tooltip: "Lock now",
           onPressed: () {
@@ -284,6 +271,57 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       ];
     }
     return const [];
+  }
+
+  void _showSearchSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(ctx).pop(),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          DraggableScrollableSheet(
+            initialChildSize: 0.9,
+            maxChildSize: 0.95,
+            minChildSize: 0.5,
+            builder: (_, controller) => Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const Expanded(
+                    child: SearchScreen(showAppBar: false),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _openAddItem({String? typeKey}) {
@@ -311,7 +349,6 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final navBorderColor = isDark
         ? Colors.white.withValues(alpha: 0.14)
@@ -423,11 +460,10 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
           children: [
             const DashboardScreen(showAppBar: false),
             CredentialListScreen(key: _vaultKey, showAppBar: false),
-            const SearchScreen(showAppBar: false),
             const SettingsScreen(showAppBar: false),
           ],
         ),
-        floatingActionButton: keyboardOpen
+        floatingActionButton: _currentPage == AppPage.settings
             ? null
             : FloatingActionButton(
                 heroTag: null,
@@ -438,7 +474,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                 onPressed: () => _openAddItem(),
                 child: const Icon(Icons.add, size: 26),
               ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         bottomNavigationBar: SafeArea(
           top: false,
           child: Container(
@@ -477,16 +513,10 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                         label: 'Vault',
                         index: 1,
                       ),
-                      const SizedBox(width: 46),
-                      _navItem(
-                        icon: Icons.search_rounded,
-                        label: 'Search',
-                        index: 2,
-                      ),
                       _navItem(
                         icon: Icons.settings_rounded,
                         label: 'Settings',
-                        index: 3,
+                        index: 2,
                       ),
                     ],
                   ),
