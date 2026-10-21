@@ -69,7 +69,7 @@ android {
         outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             val cleanVersionName = versionName?.substringBefore('+') ?: "unknown"
-            val abi = output.getFilter(com.android.build.VariantOutput.FilterType.ABI)
+            val abi = output.getFilter("ABI")
             val abiSuffix = abi?.let { "-$it" } ?: ""
             output.outputFileName = "ironvault-v${cleanVersionName}${abiSuffix}.apk"
         }
