@@ -360,10 +360,12 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
       icon: icon,
       label: label,
       selected: selected,
-      onTap: () async {
-        await _refreshCachedUpdateStatus();
-        if (!mounted) return;
-        setState(() => _currentPage = _pageForIndex(index));
+      onTap: () {
+        final nextPage = _pageForIndex(index);
+        if (_currentPage != nextPage) {
+          setState(() => _currentPage = nextPage);
+        }
+        _refreshCachedUpdateStatus();
       },
     );
   }

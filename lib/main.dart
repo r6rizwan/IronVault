@@ -28,6 +28,8 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
+  bool _privacyObscured = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,12 +51,23 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
     return currentRoute?.settings.name == WelcomeScreen.routeName;
   }
 
+  void _setPrivacyObscured(bool value) {
+    if (mounted && _privacyObscured != value) {
+      setState(() => _privacyObscured = value);
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final autoLock = ref.read(autoLockProvider.notifier);
 
-    if (state == AppLifecycleState.paused ||
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
+      _setPrivacyObscured(true);
+    }
+
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       // App moved to background (full pause) -> start background timing.
       autoLock.markPaused();
     }
@@ -67,15 +80,21 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
         autoLock.resumeAutoLock(clearPauseState: false);
 
         if (locked) {
-          if (_isWelcomeVisible()) return;
-          navKey.currentState?.pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (_) => const WelcomeScreen(),
-              settings: const RouteSettings(name: WelcomeScreen.routeName),
-            ),
-            (route) => false,
-          );
+          if (!_isWelcomeVisible()) {
+            navKey.currentState?.pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => const WelcomeScreen(),
+                settings: const RouteSettings(name: WelcomeScreen.routeName),
+              ),
+              (route) => false,
+            );
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _setPrivacyObscured(false),
+            );
+            return;
+          }
         }
+        _setPrivacyObscured(false);
       });
     }
   }
@@ -111,10 +130,20 @@ class _MyAppState extends ConsumerState<MyApp> with WidgetsBindingObserver {
         SystemChrome.setSystemUIOverlayStyle(style);
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: style,
-          child: SafeArea(
-            top: false,
-            bottom: true,
-            child: child ?? const SizedBox.shrink(),
+          child: Stack(
+            children: [
+              SafeArea(
+                top: false,
+                bottom: true,
+                child: child ?? const SizedBox.shrink(),
+              ),
+              if (_privacyObscured)
+                const Positioned.fill(
+                  child: AbsorbPointer(
+                    child: ColoredBox(color: Color(0xFF0B1220)),
+                  ),
+                ),
+            ],
           ),
         );
       },

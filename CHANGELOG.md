@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.28
+
+- Added a lifecycle privacy overlay that immediately obscures vault content when IronVault moves to the background, then reveals the appropriate screen only after the auto-lock decision completes.
+- Improved bottom-navigation responsiveness by moving update-indicator storage refreshes off the tab-selection path.
+- Completed the sensitive-flow audit for clipboard copy, sharing, encrypted backups, CSV exports, and document previews.
+
 ## v1.0.26
 - Bug fixes and performance improvements 
 
