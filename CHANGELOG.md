@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.1
+
+- Fixed Android release build configuration for Kotlin compiler options and APK staging.
+
 ## v1.1.0
 
 - Added smaller Android APK downloads for `armeabi-v7a`, `arm64-v8a`, and `x86_64`, while keeping a universal APK available as a compatibility option.
