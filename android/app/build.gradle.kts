@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -25,8 +26,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+    kotlin {
+        compilerOptions {
+            jvmTarget = JvmTarget.JVM_11
+        }
     }
 
     defaultConfig {
@@ -60,18 +63,6 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
-        }
-    }
-
-    applicationVariants.all {
-        // Keep ABI-specific Gradle outputs distinct; Flutter also creates
-        // normalized copies under build/app/outputs/flutter-apk/.
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            val cleanVersionName = versionName?.substringBefore('+') ?: "unknown"
-            val abi = output.getFilter("ABI")
-            val abiSuffix = abi?.let { "-$it" } ?: ""
-            output.outputFileName = "ironvault-v${cleanVersionName}${abiSuffix}.apk"
         }
     }
 }
