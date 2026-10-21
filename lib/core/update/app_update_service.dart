@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:ironvault/core/services/crash_reporter.dart';
@@ -37,6 +39,7 @@ class AppUpdateService {
   static const String repo = 'IronVault';
   static const String apiBase = 'https://api.github.com/repos/$owner/$repo';
   static const Duration _requestTimeout = Duration(seconds: 12);
+  static const MethodChannel _deviceChannel = MethodChannel('ironvault/device');
 
   static String displayVersion(String version) {
     return version.trim().split('+').first;
@@ -86,14 +89,7 @@ class AppUpdateService {
       final notes = (json['body'] ?? '').toString();
       final assets = (json['assets'] as List<dynamic>? ?? []);
 
-      String? apkUrl;
-      for (final a in assets) {
-        final name = (a['name'] ?? '').toString().toLowerCase();
-        if (name.endsWith('.apk')) {
-          apkUrl = (a['browser_download_url'] ?? '').toString();
-          break;
-        }
-      }
+      final apkUrl = await _selectApkUrl(assets, tag);
 
       if (apkUrl == null || tag.isEmpty) {
         return const AppUpdateCheckResult(info: null, success: false);
@@ -129,6 +125,41 @@ class AppUpdateService {
       );
       return const AppUpdateCheckResult(info: null, success: false);
     }
+  }
+
+  Future<String?> _selectApkUrl(List<dynamic> assets, String version) async {
+    final assetsByName = <String, String>{};
+    for (final asset in assets) {
+      if (asset is! Map<String, dynamic>) continue;
+      final name = (asset['name'] ?? '').toString().toLowerCase();
+      final url = (asset['browser_download_url'] ?? '').toString();
+      if (name.endsWith('.apk') && url.isNotEmpty) {
+        assetsByName[name] = url;
+      }
+    }
+
+    if (Platform.isAndroid) {
+      try {
+        final supportedAbis = await _deviceChannel.invokeListMethod<String>(
+          'supportedAbis',
+        );
+        for (final abi in supportedAbis ?? const <String>[]) {
+          final url = assetsByName['ironvault-v$version-$abi.apk'];
+          if (url != null) return url;
+        }
+      } catch (_) {
+        // Older app builds may not expose the device ABI channel.
+      }
+    }
+
+    for (final abi in const ['arm64-v8a', 'armeabi-v7a', 'x86_64']) {
+      final url = assetsByName['ironvault-v$version-$abi.apk'];
+      if (url != null) return url;
+    }
+    final universalUrl = assetsByName['ironvault-v$version.apk'];
+    if (universalUrl != null) return universalUrl;
+    if (assetsByName.isEmpty) return null;
+    return assetsByName.values.first;
   }
 
   String _currentInstalledVersion(PackageInfo info) {

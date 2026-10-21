@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.1.0
+
+- Added smaller Android APK downloads for `armeabi-v7a`, `arm64-v8a`, and `x86_64`, while keeping a universal APK available as a compatibility option.
+- Updated in-app update checks to select the APK matching the device's supported ABI.
+
 ## v1.0.28
 
 - Added a lifecycle privacy overlay that immediately obscures vault content when IronVault moves to the background, then reveals the appropriate screen only after the auto-lock decision completes.

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (for example v1.0.24)'
+        description: 'Tag to release (for example v1.1.0)'
         required: true
         type: string
   push:
@@ -58,46 +58,46 @@ jobs:
             echo "storeFile=keystore.jks"
           } > android/key.properties
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build universal compatibility APK
+        run: |
+          flutter build apk --release
+          mkdir -p build/release-assets
+          cp build/app/outputs/flutter-apk/app-release.apk "build/release-assets/ironvault-${RELEASE_TAG}.apk"
 
-      - name: Stage release APK for GitHub Release
+      - name: Build ABI-specific release APKs
+        run: flutter build apk --release --split-per-abi
+
+      - name: Stage release APKs for GitHub Release
         run: |
           set -euo pipefail
-          TAG="${RELEASE_TAG}"
-          DEST="build/app/outputs/apk/release/ironvault-${TAG}.apk"
-          mkdir -p build/app/outputs/apk/release
-          # Prefer the Gradle variant output (same signing as the configured release variant).
-          GRADLE_APK="$(ls build/app/outputs/apk/release/ironvault-v*.apk 2>/dev/null | head -n 1 || true)"
-          if [ -n "${GRADLE_APK}" ] && [ -f "${GRADLE_APK}" ]; then
-            # Gradle may already output exactly DEST; cp same→same fails with exit 1.
-            if [ -f "${DEST}" ] && [ "$(realpath "${GRADLE_APK}")" = "$(realpath "${DEST}")" ]; then
-              :
-            else
-              cp "${GRADLE_APK}" "${DEST}"
-            fi
-          else
-            cp build/app/outputs/flutter-apk/app-release.apk "${DEST}"
-          fi
-          ls -la "${DEST}"
+          DEST_DIR="build/release-assets"
+          mkdir -p "${DEST_DIR}"
+          for ABI in armeabi-v7a arm64-v8a x86_64; do
+            SOURCE="build/app/outputs/flutter-apk/app-${ABI}-release.apk"
+            DEST="${DEST_DIR}/ironvault-${RELEASE_TAG}-${ABI}.apk"
+            test -s "${SOURCE}"
+            cp "${SOURCE}" "${DEST}"
+          done
+          ls -lh "${DEST_DIR}"
 
-      - name: Verify APK (package + version + keystore)
+      - name: Verify release APKs (package + version + keystore)
         run: |
-          APK="build/app/outputs/apk/release/ironvault-${RELEASE_TAG}.apk"
-          ls -la "$APK"
           SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           APKSIGNER="$(find "$SDK" -path '*/build-tools/*/apksigner' 2>/dev/null | sort -V | tail -1)"
-          if test -n "$APKSIGNER" && test -x "$APKSIGNER"; then
-            "$APKSIGNER" verify --print-certs "$APK" | head -40
-          else
-            echo "apksigner not found under SDK; skip cert dump"
-          fi
           AAPT="$(find "$SDK" -path '*/build-tools/*/aapt' 2>/dev/null | sort -V | tail -1)"
-          if test -n "$AAPT" && test -x "$AAPT"; then
-            "$AAPT" dump badging "$APK" | head -5
-          else
-            echo "aapt not found in SDK; skip badging dump"
-          fi
+          for APK in build/release-assets/*.apk; do
+            test -s "$APK"
+            if test -n "$APKSIGNER" && test -x "$APKSIGNER"; then
+              "$APKSIGNER" verify --print-certs "$APK" | head -40
+            else
+              echo "apksigner not found under SDK; skip cert dump"
+            fi
+            if test -n "$AAPT" && test -x "$AAPT"; then
+              "$AAPT" dump badging "$APK" | head -5
+            else
+              echo "aapt not found in SDK; skip badging dump"
+            fi
+          done
 
       - name: Extract release notes from changelog
         run: |
@@ -112,4 +112,8 @@ jobs:
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           body_path: release_notes.md
-          files: build/app/outputs/apk/release/ironvault-${{ env.RELEASE_TAG }}.apk
+          files: |
+            build/release-assets/ironvault-${{ env.RELEASE_TAG }}.apk
+            build/release-assets/ironvault-${{ env.RELEASE_TAG }}-armeabi-v7a.apk
+            build/release-assets/ironvault-${{ env.RELEASE_TAG }}-arm64-v8a.apk
+            build/release-assets/ironvault-${{ env.RELEASE_TAG }}-x86_64.apk

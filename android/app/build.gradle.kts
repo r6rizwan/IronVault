@@ -64,17 +64,14 @@ android {
     }
 
     applicationVariants.all {
-        // This renames the Gradle artifact under:
-        // build/app/outputs/apk/release/
-        // Flutter also creates a separate normalized copy under:
-        // build/app/outputs/flutter-apk/app-release.apk
-        // That second copy is controlled by Flutter tooling, not Gradle,
-        // so it cannot be renamed here.
-        // For distribution, always use the Gradle artifact from outputs/apk/release/.
+        // Keep ABI-specific Gradle outputs distinct; Flutter also creates
+        // normalized copies under build/app/outputs/flutter-apk/.
         outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
             val cleanVersionName = versionName?.substringBefore('+') ?: "unknown"
-            output.outputFileName = "ironvault-v${cleanVersionName}.apk"
+            val abi = output.getFilter(com.android.build.VariantOutput.FilterType.ABI)
+            val abiSuffix = abi?.let { "-$it" } ?: ""
+            output.outputFileName = "ironvault-v${cleanVersionName}${abiSuffix}.apk"
         }
     }
 }

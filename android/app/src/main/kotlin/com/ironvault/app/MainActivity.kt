@@ -9,6 +9,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterFragmentActivity() {
     private lateinit var lifecycleChannel: MethodChannel
+    private lateinit var deviceChannel: MethodChannel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Set secure flag before activity finishes initialization so recents
@@ -29,6 +30,16 @@ class MainActivity: FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "ironvault/lifecycle"
         )
+        deviceChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "ironvault/device"
+        )
+        deviceChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "supportedAbis" -> result.success(Build.SUPPORTED_ABIS.toList())
+                else -> result.notImplemented()
+            }
+        }
     }
 
     override fun onUserLeaveHint() {
