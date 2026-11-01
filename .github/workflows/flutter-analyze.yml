@@ -11,13 +11,17 @@ on:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v5 # TODO: pin to full commit SHA (tag v5)
+        with:
+          persist-credentials: false
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2.19.0
+        uses: subosito/flutter-action@v2.19.0 # TODO: pin to full commit SHA (tag v2.19.0)
         with:
           channel: stable
           cache: true
