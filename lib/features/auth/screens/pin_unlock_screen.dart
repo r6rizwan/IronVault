@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2025-2026 Rizwan Mulla
+// SPDX-License-Identifier: GPL-3.0-only
 // ignore_for_file: depend_on_referenced_packages, use_build_context_synchronously
 
 import 'dart:async';

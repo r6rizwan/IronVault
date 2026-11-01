@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2025-2026 Rizwan Mulla
+// SPDX-License-Identifier: GPL-3.0-only
 String getFileExtension(String path) {
   final dot = path.lastIndexOf('.');
   if (dot <= 0 || dot == path.length - 1) return 'bin';

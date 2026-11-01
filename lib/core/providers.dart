@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2025-2026 Rizwan Mulla
+// SPDX-License-Identifier: GPL-3.0-only
 // lib/core/providers.dart
 // Centralized providers to avoid circular imports between UI screens and main.dart
 
