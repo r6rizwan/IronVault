@@ -23,19 +23,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5 # TODO: pin to full commit SHA (tag v5)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 1 # Only pulls the latest commit, not the whole history
           persist-credentials: false
 
       - name: Set up Java
-        uses: actions/setup-java@v5 # TODO: pin to full commit SHA (tag v5)
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: 'zulu'
           java-version: '17' # Match the version required by your Flutter/Gradle version
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2.19.0 # TODO: pin to full commit SHA (tag v2.19.0)
+        uses: subosito/flutter-action@e938fdf56512cc96ef2f93601a5a40bde3801046 # v2.19.0
         with:
           channel: stable
           cache: true
@@ -102,7 +102,7 @@ jobs:
           done
 
       - name: Attest release APK provenance
-        uses: actions/attest-build-provenance@v3 # TODO: pin to full commit SHA (tag v3)
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
           subject-path: build/release-assets/*.apk
 
@@ -115,7 +115,7 @@ jobs:
           ' tag="${RELEASE_TAG}" CHANGELOG.md | sed '/./,$!d' > release_notes.md
 
       - name: Create GitHub Release and upload APK
-        uses: softprops/action-gh-release@v2 # TODO: pin to full commit SHA (tag v2)
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           body_path: release_notes.md
