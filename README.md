@@ -59,34 +59,19 @@ It stores vault data locally on the device and protects it with strong encryptio
 - One-tap deep links from Password Health into filtered affected items
 
 ## Security Model
-- Vault data is encrypted before storage
-- Master PIN is stored as a hash, not plain text
-- Optional biometric auth uses platform APIs
+- Vault data is encrypted before storage; the master PIN is stored as a hash
 - IronVault does not use cloud sync
-- Recovery key is hidden by default and requires re-authentication before reveal
-- Recovery key reveal supports biometrics or PIN fallback
-- Recovery key raw value is only kept temporarily until the user confirms it has been saved
-- Repeated wrong PIN attempts trigger a persistent cooldown
-- Clipboard clearing is supported for copied sensitive fields
-- Android screenshot and recents-preview protection is enabled at the activity level
-- Screenshot/privacy behavior can still vary by platform and OEM implementation
+- Recovery key reveal requires re-authentication and supports biometrics or PIN fallback
+- PIN retry cooldown and clipboard clearing help reduce common exposure risks
+- Android screenshot and recents-preview protection is enabled; behavior can vary by device and OEM
 - Sentry crash reporting is enabled for release builds with safe metadata capture
+
+See [Security](docs/SECURITY.md) for security controls, limitations, and reporting guidance.
 
 ## Authorship and releases
 Early commits appear under the name Rizwan Ahmed and later ones under Rizwan Mulla; both are from GitHub account `r6rizwan`.
 
-The repository was created on GitHub on 2025-11-16, and its first commit is dated 2025-11-16. The application ID `com.ironvault.app` first appears in the repository on 2025-11-17.
-
-The first release, `v1.0.0`, was published on 2026-02-03. The latest release, `v1.1.1`, was published on 2026-10-21. Releases up to `v1.1.1` were published under MIT; later releases are licensed under GPL-3.0-only as defined in `LICENSE`.
-
-Verify the provenance of an official APK with:
-```bash
-gh attestation verify APK_FILE --repo r6rizwan/IronVault
-```
-
-Official signing certificate SHA-256: `51:CC:6A:52:5F:82:BA:52:E5:A7:15:39:AB:D7:B2:86:89:DA:36:F5:73:BA:49:FB:D7:1C:D6:EF:13:61:D5:2E` (signing key created 13 May 2026)
-
-Archive links: [Wayback Machine: repository](https://web.archive.org/web/20261102063033/https://github.com/r6rizwan/IronVault), [Wayback Machine: releases](https://web.archive.org/web/20261102063514/https://github.com/r6rizwan/IronVault/releases), [Software Heritage snapshot](https://archive.softwareheritage.org/swh:1:snp:3479f9ef2c24b41599aa73f35dfccb4da9295136;origin=https://github.com/r6rizwan/IronVault)
+Releases through `v1.1.1` were published under MIT; later releases are licensed under GPL-3.0-only. See [LICENSE](LICENSE), [NOTICE](NOTICE), and [release and provenance details](docs/RELEASING.md).
 
 The project name **IronVault**, logo, icon, and brand assets are not granted as a trademark license. If you fork or redistribute, use your own app name, package ID, and branding.
 
@@ -104,72 +89,13 @@ The project name **IronVault**, logo, icon, and brand assets are not granted as 
 - Android: supported
 - iOS: code exists but not production-validated in this repo
 
-## Run Locally
+## Quick Start
 ```bash
 flutter pub get
 flutter run
 ```
 
-## Build Release
-APK:
-```bash
-flutter build apk --release --split-per-abi
-```
-
-AAB:
-```bash
-flutter build appbundle --release
-```
-
-Output paths for ABI-specific APKs:
-- `build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk`
-- `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
-- `build/app/outputs/flutter-apk/app-x86_64-release.apk`
-- Universal APK: `build/app/outputs/flutter-apk/app-release.apk` (build with `flutter build apk --release`)
-- `build/app/outputs/bundle/release/app-release.aab`
-
-## Versioning
-Version is maintained in `pubspec.yaml`:
-- `versionName` comes from `version`
-- `versionCode` comes from the build number suffix
-- Current release target: `1.1.0+30`
-
-Use Git tags for releases:
-- Tags follow the app version format in `pubspec.yaml` (for example `v1.1.0`).
-
-## GitHub Actions (CI/CD)
-
-Workflows live under `.github/workflows/`.
-
-### Continuous integration
-- **Flutter Analyze** runs on every **push** and **pull request** to `main`: checks out the repo, runs `flutter pub get`, then `flutter analyze`.
-
-### Automated release APK
-- **Release APK** runs when you **push a tag** whose name starts with `v` (for example `v1.1.0`), and it can also be started manually from the **Actions** tab in GitHub.
-- The job restores Android release signing from **repository secrets** (never committed): base64-decoded keystore under `android/app/keystore.jks` and `android/key.properties` generated in the runner.
-- It builds a universal compatibility APK and three ABI-specific APKs, verifies each signed APK, then **creates or updates a GitHub Release** and uploads all four. Choose an ABI-specific APK for a smaller download; the universal APK remains available as a simple fallback. The in-app updater detects the device ABI and links to the matching split APK.
-- **Release notes** for the GitHub Release are taken from `CHANGELOG.md`: the workflow looks for a section whose heading is exactly `## ` plus the tag name (for example `## v1.1.0`). Add that section before you push the tag so the release page is populated.
-
-### Repository secrets (maintainers, for automated APK releases)
-
-Configure these in **GitHub → Settings → Secrets and variables → Actions**:
-
-| Secret | Purpose |
-|--------|---------|
-| `ANDROID_KEYSTORE_BASE64` | Keystore file, base64-encoded (used only in CI, not stored in git) |
-| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
-| `ANDROID_KEY_ALIAS` | Signing key alias |
-| `ANDROID_KEY_PASSWORD` | Signing key password |
-
-### Recommended release process (with Actions)
-
-1. Update `version` in `pubspec.yaml`.
-2. Add a matching section to `CHANGELOG.md`, for example `## v1.1.0` (must match the tag you will push).
-3. Commit and push to `main`.
-4. Create and push the tag (for example `git tag -a v1.1.0 -m "v1.1.0"` then `git push origin v1.1.0`).
-5. If needed, trigger the **Release APK** workflow manually from the **Actions** tab and enter the same tag; then download the APK matching the device ABI from **Releases** (for most current Android phones, `arm64-v8a`), or use the universal APK as a fallback.
-
-For a **local** signed release build, keep using `android/key.properties` and your keystore as described in **Security Rules For Contributors** below; do not commit those files.
+See [Contributing](CONTRIBUTING.md) for development and test commands, and [Releasing](docs/RELEASING.md) for versioning, signing, and GitHub Actions instructions.
 
 ## GitHub Releases (in-app update check)
 The app can check **GitHub Releases** and tell you when a newer version is available. That flow is independent of Actions: it compares your installed version to published releases.
@@ -187,30 +113,15 @@ ios/
 assets/
 ```
 
-## Security Rules For Contributors
-Never commit signing credentials or keystores:
-- `android/app/keystore.jks`
-- `android/key.properties`
-- `*.keystore`
-- `*.jks`
-- `.env`
-- `.env.*`
-- `android/app/google-services.json`
-- `ios/Runner/GoogleService-Info.plist`
-- `android/local.properties`
-
-## Quality Commands
-```bash
-dart format .
-flutter analyze
-```
-
 ## Known Limitations
 - Some platform behaviors (recents preview/privacy handling) can vary by OEM launcher and Android version.
 - Biometric availability depends on device hardware and enrollment state.
 - Auto-lock timer currently applies to app background/resume behavior, not true on-screen idle timeout.
 - Autofill service integration is currently disabled/limited by design decisions in this project stage.
 - Categories still use a separate local database path from the main vault items.
+- iOS code exists but has not been production-validated in this repo.
+
+See [Security](docs/SECURITY.md) for additional security-specific limitations.
 
 ## Disclaimer
 This repository is not a Play Store submission package and does not claim Play Store policy compliance by default.
