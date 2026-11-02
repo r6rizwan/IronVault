@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2025-2026 Rizwan Mulla
+// SPDX-License-Identifier: GPL-3.0-only
 // lib/features/home/dashboard_screen.dart
 // Home dashboard: clean, modern, and fast to scan.
 

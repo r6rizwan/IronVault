@@ -72,13 +72,23 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Screenshot/privacy behavior can still vary by platform and OEM implementation
 - Sentry crash reporting is enabled for release builds with safe metadata capture
 
-## Ownership, License, and Brand Use
-This repository is licensed under MIT for source code reuse as defined in `LICENSE`.
+## Authorship and releases
+Early commits appear under the name Rizwan Ahmed and later ones under Rizwan Mulla; both are from GitHub account `r6rizwan`.
 
-Important:
-- The MIT license covers code.
-- The project name **IronVault**, logo, icon, and brand assets are not granted as a trademark license.
-- If you fork or redistribute, use your own app name, package ID, and branding.
+The repository was created on GitHub on 2025-11-16, and its first commit is dated 2025-11-16. The application ID `com.ironvault.app` first appears in the repository on 2025-11-17.
+
+The first release, `v1.0.0`, was published on 2026-02-03. The latest release, `v1.1.1`, was published on 2026-10-21. Releases up to `v1.1.1` were published under MIT; later releases are licensed under GPL-3.0-only as defined in `LICENSE`.
+
+Verify the provenance of an official APK with:
+```bash
+gh attestation verify APK_FILE --repo r6rizwan/IronVault
+```
+
+Official signing certificate SHA-256: `TODO_CERT_SHA256`
+
+Archive links: `TODO_ARCHIVE_ORG_URL`, `TODO_SOFTWARE_HERITAGE_URL`
+
+The project name **IronVault**, logo, icon, and brand assets are not granted as a trademark license. If you fork or redistribute, use your own app name, package ID, and branding.
 
 ## Tech Stack
 - Flutter
