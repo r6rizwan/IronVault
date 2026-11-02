@@ -84,9 +84,9 @@ Verify the provenance of an official APK with:
 gh attestation verify APK_FILE --repo r6rizwan/IronVault
 ```
 
-Official signing certificate SHA-256: `TODO_CERT_SHA256`
+Official signing certificate SHA-256: `51:CC:6A:52:5F:82:BA:52:E5:A7:15:39:AB:D7:B2:86:89:DA:36:F5:73:BA:49:FB:D7:1C:D6:EF:13:61:D5:2E` (signing key created 13 May 2026)
 
-Archive links: `TODO_ARCHIVE_ORG_URL`, `TODO_SOFTWARE_HERITAGE_URL`
+Archive links: [Wayback Machine: repository](https://web.archive.org/web/20261102063033/https://github.com/r6rizwan/IronVault), [Wayback Machine: releases](https://web.archive.org/web/20261102063514/https://github.com/r6rizwan/IronVault/releases), [Software Heritage snapshot](https://archive.softwareheritage.org/swh:1:snp:3479f9ef2c24b41599aa73f35dfccb4da9295136;origin=https://github.com/r6rizwan/IronVault)
 
 The project name **IronVault**, logo, icon, and brand assets are not granted as a trademark license. If you fork or redistribute, use your own app name, package ID, and branding.
 
