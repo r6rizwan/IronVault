@@ -2,11 +2,45 @@
 
 ## Version and changelog
 
-The version is maintained in `pubspec.yaml`. Flutter uses the version name and build number from that value. Increment both for each new app release and add a matching `CHANGELOG.md` heading, such as `## v1.2.0`.
+The version is maintained in `pubspec.yaml`: the version name comes from the part before `+`, and the Android version code comes from the build-number suffix. Increment both for each app release and add a matching `CHANGELOG.md` heading, such as `## v1.2.0`.
 
 Releases through `v1.1.1` were published under MIT. Later releases are licensed under GPL-3.0-only. See [LICENSE](../LICENSE), [the archived MIT license](../LICENSES/MIT-v1.1.1-and-earlier.txt), and [NOTICE](../NOTICE).
 
-## Automated release
+## Local builds
+
+Build ABI-specific APKs:
+
+```bash
+flutter build apk --release --split-per-abi
+```
+
+Build the universal compatibility APK:
+
+```bash
+flutter build apk --release
+```
+
+Build an Android App Bundle:
+
+```bash
+flutter build appbundle --release
+```
+
+Flutter outputs:
+
+- `build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk`
+- `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
+- `build/app/outputs/flutter-apk/app-x86_64-release.apk`
+- Universal APK: `build/app/outputs/flutter-apk/app-release.apk`
+- App Bundle: `build/app/outputs/bundle/release/app-release.aab`
+
+## GitHub Actions
+
+### Continuous integration
+
+The **Flutter Analyze** workflow runs on pushes and pull requests to `main`. It checks out the repository, runs `flutter pub get`, and then `flutter analyze`. It does not currently run the test suite; run `flutter test` locally as described in [Contributing](../CONTRIBUTING.md).
+
+### Automated release
 
 The **Release APK** workflow runs when a `v*` tag is pushed. It builds a universal APK and ABI-specific APKs, verifies them, creates or updates a GitHub Release, and uploads the artifacts. Release notes are taken from the matching `## <tag>` section in `CHANGELOG.md`.
 
