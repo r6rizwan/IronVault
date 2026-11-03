@@ -785,6 +785,62 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     );
   }
 
+  Widget _sectionHeading(String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppThemeColors.textMuted(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildField(FieldDefinition field) {
+    final controller = _controllers[field.key]!;
+    final obscure = _obscure[field.key] ?? false;
+    final suffix = field.obscure
+        ? IconButton(
+            icon: Icon(
+              obscure ? Icons.visibility : Icons.visibility_off,
+            ),
+            onPressed: () {
+              setState(() {
+                _obscure[field.key] = !obscure;
+              });
+            },
+          )
+        : null;
+
+    return Padding(
+      key: _fieldKeys[field.key],
+      padding: const EdgeInsets.only(bottom: 14),
+      child: CommonTextField(
+        label: field.label,
+        controller: controller,
+        obscure: field.obscure ? obscure : false,
+        keyboardType: field.keyboardType,
+        inputFormatters: _formattersForField(field.key),
+        maxLines: field.maxLines,
+        suffix: suffix,
+        requiredField: field.required,
+        errorText: _fieldErrors[field.key],
+      ),
+    );
+  }
+
   void _openTypePicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -1337,48 +1393,47 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                           const SizedBox(height: 18),
                         ],
 
+                        _sectionHeading(
+                          switch (_typeKey) {
+                            'password' => 'Sign-in details',
+                            'bank' => 'Account details',
+                            'card' => 'Card details',
+                            'document' => 'Document details',
+                            'note' => 'Private note',
+                            _ => 'Item details',
+                          },
+                          switch (_typeKey) {
+                            'password' => 'The username and password for this login.',
+                            'bank' => 'Information to identify and access this account.',
+                            'card' => 'Payment card information stored in your vault.',
+                            'document' => 'Attach pages or add identifying details.',
+                            'note' => 'Write information you want to keep private.',
+                            _ => '',
+                          },
+                        ),
+
                         if (isDocument) ...[
                           _scanSection(context),
                           const SizedBox(height: 12),
                         ],
 
-                        ...type.fields.map((field) {
-                          if (field.key == 'scans') {
-                            return const SizedBox.shrink();
-                          }
-                          final controller = _controllers[field.key]!;
-                          final obscure = _obscure[field.key] ?? false;
-                          final suffix = field.obscure
-                              ? IconButton(
-                                  icon: Icon(
-                                    obscure
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscure[field.key] = !obscure;
-                                    });
-                                  },
-                                )
-                              : null;
-
-                          return Padding(
-                            key: _fieldKeys[field.key],
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: CommonTextField(
-                              label: field.label,
-                              controller: controller,
-                              obscure: field.obscure ? obscure : false,
-                              keyboardType: field.keyboardType,
-                              inputFormatters: _formattersForField(field.key),
-                              maxLines: field.maxLines,
-                              suffix: suffix,
-                              requiredField: field.required,
-                              errorText: _fieldErrors[field.key],
-                            ),
-                          );
-                        }),
+                        ...type.fields
+                            .where((field) => field.key != 'scans')
+                            .map((field) {
+                              if (field.key == 'notes') {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _sectionHeading(
+                                      'Additional details',
+                                      'Optional notes saved with this item.',
+                                    ),
+                                    _buildField(field),
+                                  ],
+                                );
+                              }
+                              return _buildField(field);
+                            }),
 
                         const SizedBox(height: 6),
                       ],

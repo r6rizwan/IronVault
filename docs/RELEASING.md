@@ -89,7 +89,7 @@ Official signing certificate SHA-256: `51:CC:6A:52:5F:82:BA:52:E5:A7:15:39:AB:D7
 - First commit: 2025-11-16.
 - `com.ironvault.app` first appears in the repository: 2025-11-17.
 - First release `v1.0.0`: 2026-02-03.
-- Latest release at the time this guide was updated, `v1.1.1`: 2026-10-21.
+- Latest release at the time this guide was updated, `v1.1.2`: 2026-11-03.
 
 Archive records:
 

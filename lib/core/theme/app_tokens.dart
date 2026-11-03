@@ -49,6 +49,15 @@ class AppThemeColors {
   static bool isDark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
 
+  static LinearGradient authBackground(BuildContext context) =>
+      LinearGradient(
+        colors: isDark(context)
+            ? [AppColorsDark.bg, const Color(0xFF111D38)]
+            : [AppColorsLight.bg, const Color(0xFFEAF2FF)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+
   static Color text(BuildContext context) =>
       isDark(context) ? AppColorsDark.text : AppColorsLight.text;
 

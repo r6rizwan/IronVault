@@ -351,23 +351,11 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
                         // ── Inline search bar ──────────────────────
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black
-                                        .withValues(alpha: 0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
+                        if (hasCategoryFilter || hasItemIdFilter)
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 12, 16, 4),
                               child: TextField(
                                 controller: _searchController,
                                 onChanged: (val) {
@@ -379,7 +367,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                   }
                                 },
                                 decoration: InputDecoration(
-                                  hintText: 'Search vault…',
+                                  hintText: 'Search in this list…',
                                   prefixIcon: const Icon(
                                     Icons.search_rounded,
                                   ),
@@ -395,21 +383,10 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                           },
                                         ),
                                   filled: true,
-                                  fillColor: Theme.of(context).cardColor,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                    horizontal: 4,
-                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
 
                         // ── Empty state ────────────────────────────
                         if (filteredItems.isEmpty)

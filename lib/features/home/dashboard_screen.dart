@@ -152,8 +152,6 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     error: (_, __) => const SizedBox.shrink(),
                   ),
-                  const SizedBox(height: 6),
-                  const SizedBox(height: 10),
                   InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () {
@@ -165,13 +163,10 @@ class DashboardScreen extends ConsumerWidget {
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: Colors.white.withValues(alpha: 0.14),
                         ),
@@ -181,35 +176,23 @@ class DashboardScreen extends ConsumerWidget {
                           Icon(
                             Icons.health_and_safety_outlined,
                             color: Colors.white,
-                            size: 18,
+                            size: 17,
                           ),
-                          SizedBox(width: 10),
+                          SizedBox(width: 8),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Open Password Health",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                SizedBox(height: 2),
-                                Text(
-                                  "Review weak, reused, and old passwords.",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              "Password Health",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                           Icon(
-                            Icons.arrow_forward_ios,
+                            Icons.arrow_forward_rounded,
                             color: Colors.white70,
-                            size: 14,
+                            size: 17,
                           ),
                         ],
                       ),
@@ -220,6 +203,49 @@ class DashboardScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: 18),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const _SectionHeader(title: "Recent", icon: Icons.history),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CredentialListScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text("See all"),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            itemsAsync.when(
+              data: (allItems) {
+                if (allItems.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(child: Text("No recent items")),
+                  );
+                }
+                final items = _recentItems(allItems);
+                return Column(
+                  children: items.map((item) => _RecentTile(item: item)).toList(),
+                );
+              },
+              loading: () => const Column(
+                children: [
+                  _RecentTileSkeleton(),
+                  _RecentTileSkeleton(),
+                  _RecentTileSkeleton(),
+                ],
+              ),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+
+            const SizedBox(height: 22),
 
             _SectionHeader(title: "Quick Add", icon: Icons.add_circle_outline),
             const SizedBox(height: 10),
@@ -332,48 +358,6 @@ class DashboardScreen extends ConsumerWidget {
               error: (_, __) => const SizedBox.shrink(),
             ),
 
-            const SizedBox(height: 22),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const _SectionHeader(title: "Recent", icon: Icons.history),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CredentialListScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text("See all"),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            itemsAsync.when(
-              data: (allItems) {
-                if (allItems.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Center(child: Text("No recent items")),
-                  );
-                }
-                final items = _recentItems(allItems);
-                return Column(
-                  children: items.map((item) => _RecentTile(item: item)).toList(),
-                );
-              },
-              loading: () => const Column(
-                children: [
-                  _RecentTileSkeleton(),
-                  _RecentTileSkeleton(),
-                  _RecentTileSkeleton(),
-                ],
-              ),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
           ],
         ),
       ),

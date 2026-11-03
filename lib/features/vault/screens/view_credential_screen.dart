@@ -809,6 +809,14 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _shareCredential,
+              icon: const Icon(Icons.share_outlined, size: 18),
+              label: const Text('Share'),
+            ),
+          ),
               ],
             ),
           ),
@@ -1154,11 +1162,9 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded),
-            tooltip: "More options",
+            tooltip: "More actions",
             onSelected: (val) async {
-              if (val == 'share') {
-                _shareCredential();
-              } else if (val == 'delete') {
+              if (val == 'delete') {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (_) {
@@ -1194,16 +1200,6 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
               }
             },
             itemBuilder: (ctx) => [
-              const PopupMenuItem<String>(
-                value: 'share',
-                child: Row(
-                  children: [
-                    Icon(Icons.share_outlined, size: 20),
-                    SizedBox(width: 12),
-                    Text('Share'),
-                  ],
-                ),
-              ),
               const PopupMenuItem<String>(
                 value: 'delete',
                 child: Row(

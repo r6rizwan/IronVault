@@ -226,6 +226,11 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
     if (page == AppPage.vault) {
       return [
         IconButton(
+          icon: const Icon(Icons.search_rounded),
+          tooltip: "Search vault",
+          onPressed: () => _showSearchSheet(context),
+        ),
+        IconButton(
           icon: const Icon(Icons.swap_vert_rounded),
           tooltip: "Sort",
           onPressed: () => _vaultKey.currentState?.openSortSheetFromParent(),

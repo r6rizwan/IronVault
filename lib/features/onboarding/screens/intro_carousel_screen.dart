@@ -71,20 +71,14 @@ class _IntroCarouselScreenState extends ConsumerState<IntroCarouselScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final textColor = AppThemeColors.text(context);
     final textMuted = AppThemeColors.textMuted(context);
-    final bgGradient = LinearGradient(
-      colors: isDark
-          ? [const Color(0xFF0B0F1A), const Color(0xFF121826)]
-          : [const Color(0xFFF7FAFF), const Color(0xFFEAF2FF)],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: bgGradient),
+        decoration: BoxDecoration(
+          gradient: AppThemeColors.authBackground(context),
+        ),
         child: SafeArea(
           child: Column(
             children: [

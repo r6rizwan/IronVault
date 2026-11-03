@@ -145,13 +145,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
           children: [
             Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isDark
-                      ? [const Color(0xFF0B1020), const Color(0xFF111D38)]
-                      : [const Color(0xFFEFF4FF), const Color(0xFFF8FBFF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: AppThemeColors.authBackground(context),
               ),
             ),
             Positioned(

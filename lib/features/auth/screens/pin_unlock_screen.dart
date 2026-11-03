@@ -489,16 +489,8 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = AppThemeColors.text(context);
     final textMuted = AppThemeColors.textMuted(context);
-    final bgGradient = LinearGradient(
-      colors: isDark
-          ? [const Color(0xFF0B1020), const Color(0xFF111D38)]
-          : [const Color(0xFFEFF4FF), const Color(0xFFF8FBFF)],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    );
     final size = MediaQuery.of(context).size;
 
     return PopScope(
@@ -513,7 +505,11 @@ class _PinUnlockScreenState extends ConsumerState<PinUnlockScreen>
           message: 'Unlocking your vault...',
           child: Stack(
             children: [
-              Container(decoration: BoxDecoration(gradient: bgGradient)),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: AppThemeColors.authBackground(context),
+                ),
+              ),
               Positioned(
                 top: -120,
                 right: -70,

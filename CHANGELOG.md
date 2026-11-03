@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.2
+
+- Unified Home and Vault search access through the same universal search sheet with type, category, and favorites filters.
+- Reordered the Home dashboard to surface recent items sooner and compacted the Password Health action.
+- Grouped add/edit form fields by item purpose and separated optional notes with contextual guidance.
+- Made credential sharing a labeled, visible action while keeping deletion in the secondary menu.
+- Unified onboarding and PIN-unlock backgrounds with a shared theme-aware gradient.
+
 ## v1.1.1
 
 - Fixed Android release build configuration for Kotlin compiler options and APK staging.
