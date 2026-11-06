@@ -36,6 +36,7 @@ class AppTheme {
       colorScheme: base.colorScheme.copyWith(
         primary: AppColorsLight.primary,
         secondary: AppColorsLight.secondary,
+        tertiary: AppColorsLight.tertiary,
         surface: AppColorsLight.surface,
       ),
       textTheme: textTheme,
@@ -63,11 +64,12 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColorsLight.primary, width: 1.4),
+          borderSide: const BorderSide(
+            color: AppColorsLight.primary,
+            width: 1.4,
+          ),
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -114,10 +116,7 @@ class AppTheme {
             fontWeight: FontWeight.w600,
           ),
         )
-        .apply(
-          bodyColor: Colors.white,
-          displayColor: Colors.white,
-        );
+        .apply(bodyColor: Colors.white, displayColor: Colors.white);
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColorsDark.bg,
@@ -125,6 +124,7 @@ class AppTheme {
       colorScheme: base.colorScheme.copyWith(
         primary: AppColorsDark.primary,
         secondary: AppColorsDark.secondary,
+        tertiary: AppColorsDark.tertiary,
         surface: AppColorsDark.surface,
       ),
       textTheme: textTheme,
@@ -152,11 +152,12 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColorsDark.primary, width: 1.4),
+          borderSide: const BorderSide(
+            color: AppColorsDark.primary,
+            width: 1.4,
+          ),
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

@@ -257,9 +257,9 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
               return const SizedBox.shrink();
             }
             return IconButton(
-              icon: const Icon(
+              icon: Icon(
                 Icons.warning_amber_rounded,
-                color: Colors.amber,
+                color: Theme.of(context).colorScheme.tertiary,
               ),
               tooltip: 'Recovery key not confirmed yet',
               onPressed: () {
@@ -460,7 +460,11 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
                     );
                     if (mounted) setState(() {});
                     if (!ctx.mounted) return;
-                    await UpdatePrompt.show(ctx, info);
+                    await UpdatePrompt.show(
+                      ctx,
+                      info,
+                      ref.read(autoLockProvider.notifier),
+                    );
                   } else {
                     _updateAvailable = false;
                     _updateVersion = null;

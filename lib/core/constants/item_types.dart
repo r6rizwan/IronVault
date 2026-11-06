@@ -52,6 +52,11 @@ const List<ItemTypeDefinition> itemTypes = [
         obscure: true,
         required: true,
       ),
+      FieldDefinition(
+        key: 'url',
+        label: 'Website / URL',
+        keyboardType: TextInputType.url,
+      ),
       FieldDefinition(key: 'notes', label: 'Notes', maxLines: 3),
     ],
   ),

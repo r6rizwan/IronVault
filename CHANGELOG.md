@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.0
+
+- Refined Home, Vault, Search, Password Health, and credential detail layouts with clearer spacing, grouping, and theme-aware contrast.
+- Added an optional website URL to password items with a direct open-in-browser action.
+- Improved credential sharing with selectable fields and fixed text-only shares when no files are attached.
+- Made CSV migration choices explicit before column mapping: check for matches and skip/update them, or import every row as a new item.
+- Upgraded encrypted backups to format v2 with SHA-256 integrity verification while retaining restore support for v1 backups.
+- Validate selected backup files before requesting a password and report partial restore results clearly.
+- Replaced immediate export share sheets with a success toast and an explicit Share action for CSV and encrypted backups.
+
 ## v1.1.2
 
 - Unified Home and Vault search access through the same universal search sheet with type, category, and favorites filters.

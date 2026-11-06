@@ -162,7 +162,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
       return;
     }
 
-    UpdatePrompt.show(context, info);
+    UpdatePrompt.show(context, info, ref.read(autoLockProvider.notifier));
   }
 
   Future<void> _reportIssue() async {
@@ -308,7 +308,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   context,
                   icon: Icons.share_outlined,
                   title: 'Share App',
-                  subtitle: 'Send the app link to someone else',
+                  subtitle: 'Send the app link to friends',
                   onTap: _shareApp,
                 ),
                 const SizedBox(height: 10),

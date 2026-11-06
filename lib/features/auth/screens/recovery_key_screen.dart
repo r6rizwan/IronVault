@@ -156,9 +156,7 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => const EnableBiometricsScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const EnableBiometricsScreen()),
     );
   }
 
@@ -254,15 +252,18 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                     children: [
                       const Text(
                         'Save this key somewhere safe.',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         _recoveryKey != null
                             ? 'You can use it to reset your PIN without losing data.'
                             : widget.hasExistingKey
-                                ? 'Generate a replacement key if you want to retire the current one.'
-                                : 'Generate a recovery key so you can reset your PIN without losing data.',
+                            ? 'Generate a replacement key if you want to retire the current one.'
+                            : 'Generate a recovery key so you can reset your PIN without losing data.',
                         style: TextStyle(fontSize: 12, color: textMuted),
                       ),
                       const SizedBox(height: 12),
@@ -283,7 +284,9 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                                     alignment: Alignment.center,
                                     children: [
                                       Padding(
-                                        padding: const EdgeInsets.only(right: 8),
+                                        padding: const EdgeInsets.only(
+                                          right: 8,
+                                        ),
                                         child: Text(
                                           _recoveryKey!,
                                           style: const TextStyle(
@@ -296,7 +299,10 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                                       if (!_isRevealed)
                                         Positioned.fill(
                                           child: BackdropFilter(
-                                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                                            filter: ImageFilter.blur(
+                                              sigmaX: 8,
+                                              sigmaY: 8,
+                                            ),
                                             child: Container(
                                               color: Theme.of(context)
                                                   .scaffoldBackgroundColor
@@ -308,7 +314,9 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                                                   fontSize: 20,
                                                   fontWeight: FontWeight.w700,
                                                   letterSpacing: 1,
-                                                  color: AppThemeColors.text(context),
+                                                  color: AppThemeColors.text(
+                                                    context,
+                                                  ),
                                                 ),
                                               ),
                                             ),
@@ -320,9 +328,13 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                               ),
                               IconButton(
                                 icon: Icon(
-                                  _isRevealed ? Icons.visibility_off : Icons.visibility,
+                                  _isRevealed
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
                                 ),
-                                tooltip: _isRevealed ? 'Hide key' : 'Reveal key',
+                                tooltip: _isRevealed
+                                    ? 'Hide key'
+                                    : 'Reveal key',
                                 onPressed: _toggleRecoveryKeyVisibility,
                               ),
                             ],
@@ -340,15 +352,22 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                             widget.hasExistingKey
                                 ? 'Your current recovery key remains active until you manually generate a new one.'
                                 : 'No recovery key has been generated for this device yet.',
-                            style: TextStyle(fontSize: 13, color: textMuted, height: 1.4),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: textMuted,
+                              height: 1.4,
+                            ),
                           ),
                         ),
-                      if (_recoveryKey == null && widget.allowManualGenerate) ...[
+                      if (_recoveryKey == null &&
+                          widget.allowManualGenerate) ...[
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton(
-                            onPressed: _confirming ? null : _promptAndGenerateRecoveryKey,
+                            onPressed: _confirming
+                                ? null
+                                : _promptAndGenerateRecoveryKey,
                             child: Text(
                               widget.hasExistingKey
                                   ? 'Generate New Key'
@@ -362,15 +381,17 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.08),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.tertiary.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Write this key down and store it somewhere safe.\nDo not screenshot or copy it.',
                           textAlign: TextAlign.left,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.amber,
+                            color: Theme.of(context).colorScheme.tertiary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -386,7 +407,9 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : Text(widget.doneLabel),
                         ),
@@ -417,9 +440,7 @@ class _GlowOrb extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [color, color.withValues(alpha: 0)],
-          ),
+          gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
         ),
       ),
     );

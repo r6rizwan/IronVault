@@ -70,11 +70,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     if (item['type'] == 'card') {
       final number = (fields['number'] ?? '').toString().replaceAll(' ', '');
       if (number.isEmpty) return 'Card ••••';
-      final last4 = number.length >= 4 ? number.substring(number.length - 4) : number;
+      final last4 = number.length >= 4
+          ? number.substring(number.length - 4)
+          : number;
       return 'Card •••• $last4';
     }
     if (item['type'] == 'bank') {
-      final acct = (fields['account_number'] ?? '').toString().replaceAll(' ', '');
+      final acct = (fields['account_number'] ?? '').toString().replaceAll(
+        ' ',
+        '',
+      );
       if (acct.isEmpty) return 'Bank account';
       final last4 = acct.length >= 4 ? acct.substring(acct.length - 4) : acct;
       return 'A/C •••• $last4';
@@ -153,6 +158,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       }
       return false;
     }).toList();
+    final hasActiveFilters =
+        _typeFilter != null || _categoryFilter != null || _favoritesOnly;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -216,9 +223,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   label: const Text('Filters'),
                 ),
                 const SizedBox(width: 8),
-                if (_typeFilter != null ||
-                    _categoryFilter != null ||
-                    _favoritesOnly)
+                if (hasActiveFilters)
                   TextButton(
                     onPressed: () {
                       setState(() {
@@ -231,6 +236,36 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ),
               ],
             ),
+
+            if (hasActiveFilters) ...[
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  if (_typeFilter != null)
+                    InputChip(
+                      label: Text('Type: ${typeByKey(_typeFilter!).label}'),
+                      onDeleted: () => setState(() => _typeFilter = null),
+                    ),
+                  if (_categoryFilter != null)
+                    InputChip(
+                      label: Text('Category: $_categoryFilter'),
+                      onDeleted: () => setState(() => _categoryFilter = null),
+                    ),
+                  if (_favoritesOnly)
+                    InputChip(
+                      avatar: Icon(
+                        Icons.star_rounded,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.tertiary,
+                      ),
+                      label: const Text('Favorites'),
+                      onDeleted: () => setState(() => _favoritesOnly = false),
+                    ),
+                ],
+              ),
+            ],
 
             const SizedBox(height: 12),
 
@@ -275,7 +310,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       itemBuilder: (_, i) {
         final item = results[i];
         return InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           onTap: () {
             Navigator.push(
               context,
@@ -288,7 +323,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Theme.of(context).dividerColor),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black12.withValues(alpha: 0.05),
@@ -305,7 +341,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     context,
                   ).colorScheme.primary.withValues(alpha: 0.12),
                   child: Icon(
-                    Icons.search,
+                    typeByKey(item['type'] ?? 'password').icon,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
@@ -327,10 +363,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         const SizedBox(height: 2),
                         Text(
                           _subtitleForItem(item),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: textMuted,
-                          ),
+                          style: TextStyle(fontSize: 12, color: textMuted),
                         ),
                       ],
                     ],
@@ -352,77 +385,120 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Filters',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          void updateFilters(VoidCallback update) {
+            setState(update);
+            setSheetState(() {});
+          }
+
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.78,
                 ),
-                const SizedBox(height: 12),
-                const Text('Type'),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('All'),
-                      selected: _typeFilter == null,
-                      onSelected: (_) => setState(() => _typeFilter = null),
-                    ),
-                    ...itemTypes.map(
-                      (t) => ChoiceChip(
-                        label: Text(t.label),
-                        selected: _typeFilter == t.key,
-                        onSelected: (_) => setState(() => _typeFilter = t.key),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).dividerColor,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text('Category'),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('All'),
-                      selected: _categoryFilter == null,
-                      onSelected: (_) => setState(() => _categoryFilter = null),
-                    ),
-                    ...categories.map(
-                      (c) => ChoiceChip(
-                        label: Text(c.name),
-                        selected: _categoryFilter == c.name,
-                        onSelected: (_) =>
-                            setState(() => _categoryFilter = c.name),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Filter results',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Favorites only'),
-                  value: _favoritesOnly,
-                  onChanged: (v) => setState(() => _favoritesOnly = v),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Done'),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Item type',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('All'),
+                            selected: _typeFilter == null,
+                            onSelected: (_) =>
+                                updateFilters(() => _typeFilter = null),
+                          ),
+                          ...itemTypes.map(
+                            (type) => ChoiceChip(
+                              label: Text(type.label),
+                              selected: _typeFilter == type.key,
+                              onSelected: (_) =>
+                                  updateFilters(() => _typeFilter = type.key),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Category',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('All'),
+                            selected: _categoryFilter == null,
+                            onSelected: (_) =>
+                                updateFilters(() => _categoryFilter = null),
+                          ),
+                          ...categories.map(
+                            (category) => ChoiceChip(
+                              label: Text(category.name),
+                              selected: _categoryFilter == category.name,
+                              onSelected: (_) => updateFilters(
+                                () => _categoryFilter = category.name,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Favorites only'),
+                        value: _favoritesOnly,
+                        onChanged: (value) =>
+                            updateFilters(() => _favoritesOnly = value),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Text('Done'),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

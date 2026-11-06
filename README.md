@@ -15,11 +15,12 @@ It stores vault data locally on the device and protects it with strong encryptio
 - In-app privacy, update, issue-reporting, and share-app links from the About screen
 
 ## Recent Highlights
-- Performance optimization for tab navigation by caching local encrypted vault queries.
-- Biometric auth prompt cancellation fixes to avoid unwanted PIN prompt fallbacks.
-- Simplified 3-tab navigation (Home, Vault, Settings) with universal search sheet and inline list search.
-- Credential detail screen app bar decluttering using a 3-dots overflow action menu.
-- Recovery-key management now uses re-authentication and an explicit in-screen generation flow.
+- Refined Home, Vault, Search, Password Health, and credential detail layouts with theme-aware contrast and clearer spacing.
+- Password items support an optional website URL and direct browser opening.
+- Credential sharing lets users select which fields to include.
+- CSV migration supports column mapping, preview, duplicate handling, and importing rows as new items without matching.
+- Encrypted backup v2 verifies archive integrity and remains compatible with v1 backups.
+- CSV and encrypted backup exports show a success message with a Share action instead of opening the share sheet immediately.
 
 ## Screenshots
 
@@ -46,6 +47,7 @@ It stores vault data locally on the device and protects it with strong encryptio
   - Secure notes
   - Documents
 - Search and filtering
+- Optional website URL on passwords with a direct browser action
 - Category support with rename propagation across existing saved items
 - Password health scoring with actionable review cards for weak, reused, and old passwords
 - Auto-lock with configurable timer and app-switch behavior
@@ -54,7 +56,7 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Recovery key management from Settings with re-authentication and manual in-screen generation
 - PIN retry cooldown after repeated failed attempts
 - New-item draft restore and keep/discard draft prompt on exit
-- Encrypted backup restore plus CSV password import/export
+- Encrypted backup restore with integrity and format checks, plus CSV password import/export with column mapping and duplicate choices
 - Pull-to-refresh on Vault, Search, and Password Health screens
 - One-tap deep links from Password Health into filtered affected items
 

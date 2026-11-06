@@ -13,10 +13,75 @@ import 'package:path_provider/path_provider.dart';
 import 'package:ironvault/core/utils/encryption_util.dart';
 import 'package:ironvault/data/repositories/credential_repository.dart';
 
+class BackupImportResult {
+  final int imported;
+  final int failed;
+
+  const BackupImportResult({required this.imported, required this.failed});
+}
+
+class BackupRestoreException implements Exception {
+  final String message;
+
+  const BackupRestoreException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class BackupService {
   final CredentialRepository repo;
+  static const _formatV1 = 'ironvault-backup-1';
+  static const _formatV2 = 'ironvault-backup-2';
 
   BackupService({required this.repo});
+
+  static Future<void> validateEncryptedBackupFile(File file) async {
+    await _readAndValidatePayload(file);
+  }
+
+  static Future<Map<String, dynamic>> _readAndValidatePayload(File file) async {
+    late final Map<String, dynamic> payload;
+    try {
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is! Map<String, dynamic>) throw const FormatException();
+      payload = decoded;
+    } catch (_) {
+      throw const BackupRestoreException(
+        'This file is not a valid IronVault encrypted backup.',
+      );
+    }
+
+    final format = payload['format'];
+    if (format != _formatV1 && format != _formatV2) {
+      throw const BackupRestoreException(
+        'This backup format is not supported by this version of IronVault.',
+      );
+    }
+    final salt = payload['salt'];
+    final iterations = payload['iterations'];
+    final ciphertext = payload['ciphertext'];
+    if (salt is! String ||
+        iterations is! int ||
+        iterations < 100000 ||
+        iterations > 1000000 ||
+        ciphertext is! String) {
+      throw const BackupRestoreException(
+        'The backup file is incomplete or invalid.',
+      );
+    }
+    try {
+      if (base64.decode(salt).length != 16 ||
+          base64.decode(ciphertext).length <= 28) {
+        throw const FormatException();
+      }
+    } catch (_) {
+      throw const BackupRestoreException(
+        'The backup file is incomplete or invalid.',
+      );
+    }
+    return payload;
+  }
 
   Future<File> exportEncryptedBackup({required String password}) async {
     final items = await repo.getAllDecrypted();
@@ -64,13 +129,14 @@ class BackupService {
     }
 
     final meta = {
-      'format': 'ironvault-backup-1',
+      'format': _formatV2,
       'exportedAt': DateTime.now().toIso8601String(),
     };
 
     final itemsJson = jsonEncode({'meta': meta, 'items': exportedItems});
+    final itemsBytes = utf8.encode(itemsJson);
     archive.addFile(
-      ArchiveFile('items.json', itemsJson.length, utf8.encode(itemsJson)),
+      ArchiveFile('items.json', itemsBytes.length, itemsBytes),
     );
 
     final zipData = ZipEncoder().encode(archive);
@@ -79,11 +145,16 @@ class BackupService {
     final keyBytes = _pbkdf2(password, salt, 150000, 32);
     final keyBase64 = base64.encode(keyBytes);
 
-    final zipBase64 = base64.encode(zipData);
-    final cipherText = EncryptionUtil.encrypt(zipBase64, keyBase64);
+    final archiveChecksum = sha256.convert(zipData).toString();
+    final encryptedContent = jsonEncode({
+      'archive': base64.encode(zipData),
+      'checksumAlgorithm': 'sha256',
+      'checksum': archiveChecksum,
+    });
+    final cipherText = EncryptionUtil.encrypt(encryptedContent, keyBase64);
 
     final payload = jsonEncode({
-      'format': 'ironvault-backup-1',
+      'format': _formatV2,
       'salt': base64.encode(salt),
       'iterations': 150000,
       'ciphertext': cipherText,
@@ -97,55 +168,135 @@ class BackupService {
     return file;
   }
 
-  Future<int> importEncryptedBackup({
+  Future<BackupImportResult> importEncryptedBackup({
     required File file,
     required String password,
   }) async {
-    final payload =
-        jsonDecode(await file.readAsString()) as Map<String, dynamic>;
-    final salt = base64.decode(payload['salt'] as String);
-    final iterations = payload['iterations'] as int;
-    final cipherText = payload['ciphertext'] as String;
+    final payload = await _readAndValidatePayload(file);
+    final format = payload['format'];
+    final saltValue = payload['salt'] as String;
+    final iterationsValue = payload['iterations'] as int;
+    final cipherText = payload['ciphertext'];
 
-    final keyBytes = _pbkdf2(password, salt, iterations, 32);
-    final keyBase64 = base64.encode(keyBytes);
-    final zipBase64 = EncryptionUtil.decrypt(cipherText, keyBase64);
-    final zipBytes = base64.decode(zipBase64);
-
-    final archive = ZipDecoder().decodeBytes(zipBytes);
-    final dir = await getApplicationDocumentsDirectory();
-    final importRoot = Directory(p.join(dir.path, 'imported_scans'));
-    if (!importRoot.existsSync()) {
-      importRoot.createSync(recursive: true);
+    late final Uint8List zipBytes;
+    try {
+      final salt = base64.decode(saltValue);
+      final keyBytes = _pbkdf2(password, salt, iterationsValue, 32);
+      final keyBase64 = base64.encode(keyBytes);
+      final decrypted = EncryptionUtil.decrypt(cipherText as String, keyBase64);
+      if (format == _formatV1) {
+        zipBytes = Uint8List.fromList(base64.decode(decrypted));
+      } else {
+        final content = jsonDecode(decrypted);
+        if (content is! Map<String, dynamic> ||
+            content['checksumAlgorithm'] != 'sha256' ||
+            content['archive'] is! String ||
+            content['checksum'] is! String) {
+          throw const FormatException();
+        }
+        zipBytes = Uint8List.fromList(base64.decode(content['archive'] as String));
+        final actualChecksum = sha256.convert(zipBytes).toString();
+        if (actualChecksum != content['checksum']) {
+          throw const BackupRestoreException(
+            'Backup integrity verification failed. The file may be damaged.',
+          );
+        }
+      }
+    } on BackupRestoreException {
+      rethrow;
+    } catch (_) {
+      throw const BackupRestoreException(
+        'Could not unlock the backup. Check the password or choose an undamaged backup file.',
+      );
     }
 
+    late final Archive archive;
+    try {
+      archive = ZipDecoder().decodeBytes(zipBytes);
+    } catch (_) {
+      throw const BackupRestoreException('The backup contents are damaged or invalid.');
+    }
+    final dir = await getApplicationDocumentsDirectory();
+    final importRoot = Directory(p.join(dir.path, 'imported_scans'));
+
     Map<String, dynamic>? itemsJson;
-    final extractedPaths = <String, String>{};
+    final scanContents = <String, List<int>>{};
 
     for (final fileEntry in archive) {
       if (!fileEntry.isFile) continue;
       final name = fileEntry.name;
       if (name == 'items.json') {
-        final content = utf8.decode(fileEntry.content as List<int>);
-        itemsJson = jsonDecode(content) as Map<String, dynamic>;
+        try {
+          final content = utf8.decode(fileEntry.content as List<int>);
+          final decoded = jsonDecode(content);
+          if (decoded is! Map<String, dynamic>) throw const FormatException();
+          itemsJson = decoded;
+        } catch (_) {
+          throw const BackupRestoreException('The backup item data is invalid.');
+        }
         continue;
       }
-      final outPath = p.join(importRoot.path, name);
-      final outFile = File(outPath);
-      outFile.parent.createSync(recursive: true);
-      outFile.writeAsBytesSync(fileEntry.content as List<int>);
-      extractedPaths[name] = outFile.path;
+      final normalizedName = p.normalize(name);
+      if (p.isAbsolute(name) ||
+          normalizedName.startsWith('..${p.separator}') ||
+          normalizedName == '..' ||
+          !normalizedName.startsWith('scans${p.separator}')) {
+        throw const BackupRestoreException('The backup contains an invalid attachment path.');
+      }
+      scanContents[normalizedName] = fileEntry.content as List<int>;
     }
 
     if (itemsJson == null) {
-      throw Exception('Invalid backup (items.json missing)');
+      throw const BackupRestoreException('The backup is missing its item data.');
     }
 
-    final items = (itemsJson['items'] as List<dynamic>? ?? []);
-    var imported = 0;
-
+    final meta = itemsJson['meta'];
+    final itemsValue = itemsJson['items'];
+    if (meta is! Map<String, dynamic> ||
+        meta['format'] != format ||
+        itemsValue is! List) {
+      throw const BackupRestoreException(
+        'This backup is incomplete or uses an unsupported data format.',
+      );
+    }
+    final items = itemsValue;
+    final preparedItems = <Map<String, dynamic>>[];
     for (final raw in items) {
-      final map = raw as Map<String, dynamic>;
+      if (raw is! Map<String, dynamic> ||
+          raw['title'] is! String ||
+          raw['type'] is! String ||
+          raw['fields'] is! Map) {
+        throw const BackupRestoreException('The backup contains an invalid item record.');
+      }
+      final fieldsRaw = (raw['fields'] as Map).cast<String, dynamic>();
+      if (raw['type'] == 'document' && fieldsRaw['scans'] != null) {
+        final scans = fieldsRaw['scans'];
+        if (scans is! List ||
+            scans.any((scan) => scan is! String || !scanContents.containsKey(scan))) {
+          throw const BackupRestoreException(
+            'A document attachment is missing from the backup.',
+          );
+        }
+      }
+      preparedItems.add(raw);
+    }
+
+    if (scanContents.isNotEmpty) {
+      importRoot.createSync(recursive: true);
+    }
+    final extractedPaths = <String, String>{};
+    for (final entry in scanContents.entries) {
+      final outPath = p.join(importRoot.path, entry.key);
+      final outFile = File(outPath);
+      outFile.parent.createSync(recursive: true);
+      outFile.writeAsBytesSync(entry.value, flush: true);
+      extractedPaths[entry.key] = outFile.path;
+    }
+
+    var imported = 0;
+    var failed = 0;
+
+    for (final map in preparedItems) {
       final type = (map['type'] ?? 'password').toString();
       final title = (map['title'] ?? '').toString();
       final category = (map['category'] ?? '').toString();
@@ -158,10 +309,7 @@ class BackupService {
 
       if (type == 'document' && fieldsRaw['scans'] != null) {
         final scans = fieldsRaw['scans'];
-        List<String> names = [];
-        if (scans is List) {
-          names = scans.map((e) => e.toString()).toList();
-        }
+        final names = (scans as List).map((e) => e.toString()).toList();
         final paths = names
             .map((n) => extractedPaths[n])
             .whereType<String>()
@@ -169,17 +317,21 @@ class BackupService {
         fields['scans'] = jsonEncode(paths);
       }
 
-      await repo.addItemWithMeta(
-        type: type,
-        title: title,
-        fields: fields,
-        category: category.isEmpty ? null : category,
-        isFavorite: map['isFavorite'] == true,
-      );
-      imported++;
+      try {
+        await repo.addItemWithMeta(
+          type: type,
+          title: title,
+          fields: fields,
+          category: category.isEmpty ? null : category,
+          isFavorite: map['isFavorite'] == true,
+        );
+        imported++;
+      } catch (_) {
+        failed++;
+      }
     }
 
-    return imported;
+    return BackupImportResult(imported: imported, failed: failed);
   }
 
   Uint8List _pbkdf2(

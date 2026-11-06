@@ -13,12 +13,12 @@ class AppTokens {
 
   // Elevation / Shadows
   static List<BoxShadow> softShadow(bool isDark) => [
-        BoxShadow(
-          color: (isDark ? Colors.black : Colors.black).withValues(alpha: 0.08),
-          blurRadius: 18,
-          offset: const Offset(0, 10),
-        ),
-      ];
+    BoxShadow(
+      color: (isDark ? Colors.black : Colors.black).withValues(alpha: 0.08),
+      blurRadius: 18,
+      offset: const Offset(0, 10),
+    ),
+  ];
 }
 
 class AppColorsLight {
@@ -27,6 +27,7 @@ class AppColorsLight {
   static const surfaceMuted = Color(0xFFEEF2F8);
   static const primary = Color(0xFF2563EB);
   static const secondary = Color(0xFF06B6D4);
+  static const tertiary = Color(0xFF9A5B00);
   static const text = Color(0xFF0B1220);
   static const textMuted = Color(0xFF5B667A);
   static const border = Color(0xFFE1E7F0);
@@ -38,6 +39,7 @@ class AppColorsDark {
   static const surfaceMuted = Color(0xFF1C2733);
   static const primary = Color(0xFF4F8BFF);
   static const secondary = Color(0xFF4CC9F0);
+  static const tertiary = Color(0xFFF2B84B);
   static const text = Color(0xFFE6EDF6);
   static const textMuted = Color(0xFFA6B2C3);
   static const border = Color(0xFF263141);
@@ -49,14 +51,13 @@ class AppThemeColors {
   static bool isDark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
 
-  static LinearGradient authBackground(BuildContext context) =>
-      LinearGradient(
-        colors: isDark(context)
-            ? [AppColorsDark.bg, const Color(0xFF111D38)]
-            : [AppColorsLight.bg, const Color(0xFFEAF2FF)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      );
+  static LinearGradient authBackground(BuildContext context) => LinearGradient(
+    colors: isDark(context)
+        ? [AppColorsDark.bg, const Color(0xFF111D38)]
+        : [AppColorsLight.bg, const Color(0xFFEAF2FF)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
   static Color text(BuildContext context) =>
       isDark(context) ? AppColorsDark.text : AppColorsLight.text;
@@ -64,6 +65,7 @@ class AppThemeColors {
   static Color textMuted(BuildContext context) =>
       isDark(context) ? AppColorsDark.textMuted : AppColorsLight.textMuted;
 
-  static Color surfaceMuted(BuildContext context) =>
-      isDark(context) ? AppColorsDark.surfaceMuted : AppColorsLight.surfaceMuted;
+  static Color surfaceMuted(BuildContext context) => isDark(context)
+      ? AppColorsDark.surfaceMuted
+      : AppColorsLight.surfaceMuted;
 }

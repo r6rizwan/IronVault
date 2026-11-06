@@ -18,6 +18,7 @@ import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/utils/attachment_utils.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ViewCredentialScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> item;
@@ -105,6 +106,32 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     await Clipboard.setData(ClipboardData(text: value));
     setState(() => _copiedKey = key);
     await _scheduleClipboardClear(value);
+  }
+
+  Future<void> _openWebsite(String value) async {
+    final input = value.trim();
+    final candidate = input.contains('://') ? input : 'https://$input';
+    final uri = Uri.tryParse(candidate);
+    if (uri == null ||
+        !{'http', 'https'}.contains(uri.scheme.toLowerCase()) ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty) {
+      showAppToast(context, 'Enter a valid website URL to open');
+      return;
+    }
+
+    final autoLock = ref.read(autoLockProvider.notifier);
+    autoLock.suspendAutoLock();
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        showAppToast(context, 'Could not open this website');
+      }
+    } catch (_) {
+      if (mounted) showAppToast(context, 'Could not open this website');
+    } finally {
+      autoLock.resumeAutoLock();
+    }
   }
 
   void _openScanPreview(
@@ -444,25 +471,24 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    SizedBox(
-                      height: 320,
-                      child: ListView.builder(
-                        itemCount: entries.length,
-                        itemBuilder: (_, i) {
-                          final e = entries[i];
-                          return SwitchListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(e.label),
-                            subtitle: Text(
-                              e.value,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            value: e.selected,
-                            onChanged: (v) => setLocal(() => e.selected = v),
-                          );
-                        },
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            for (final entry in entries)
+                              FilterChip(
+                                label: Text(entry.label),
+                                selected: entry.selected,
+                                onSelected: (selected) =>
+                                    setLocal(() => entry.selected = selected),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -505,7 +531,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
         ShareParams(
           text: shareText.trim().isEmpty ? null : shareText,
           subject: _displayTitle().isEmpty ? "Credential" : _displayTitle(),
-          files: shareFiles,
+          files: shareFiles.isEmpty ? null : shareFiles,
         ),
       );
     } catch (e) {
@@ -699,8 +725,6 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                   ],
                 ),
               ),
-              if (item["isFavorite"] == true)
-                const Icon(Icons.star_rounded, color: Colors.amber),
             ],
           ),
           const SizedBox(height: 14),
@@ -708,7 +732,6 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _summaryPill(icon: typeDef.icon, label: typeDef.label),
               if (category.isNotEmpty)
                 _summaryPill(
                   icon: Icons.folder_open_rounded,
@@ -719,7 +742,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                 _summaryPill(
                   icon: Icons.schedule_rounded,
                   label: dateLabel,
-                  color: Colors.indigo,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
             ],
           ),
@@ -809,14 +832,6 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: _shareCredential,
-              icon: const Icon(Icons.share_outlined, size: 18),
-              label: const Text('Share'),
-            ),
-          ),
               ],
             ),
           ),
@@ -1131,7 +1146,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _displayTitle(),
+          typeDef.label,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         elevation: 0,
@@ -1140,7 +1155,9 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
             tooltip: isFav ? "Unpin" : "Mark as Favorite",
             icon: Icon(
               isFav ? Icons.star : Icons.star_border,
-              color: isFav ? Colors.amber : Colors.grey,
+              color: isFav
+                  ? Theme.of(context).colorScheme.tertiary
+                  : Colors.grey,
               size: 26,
             ),
             onPressed: _toggleFavorite,
@@ -1164,7 +1181,9 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
             icon: const Icon(Icons.more_vert_rounded),
             tooltip: "More actions",
             onSelected: (val) async {
-              if (val == 'delete') {
+              if (val == 'share') {
+                await _shareCredential();
+              } else if (val == 'delete') {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (_) {
@@ -1200,6 +1219,16 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
               }
             },
             itemBuilder: (ctx) => [
+              const PopupMenuItem<String>(
+                value: 'share',
+                child: Row(
+                  children: [
+                    Icon(Icons.share_outlined, size: 20),
+                    SizedBox(width: 12),
+                    Text('Share'),
+                  ],
+                ),
+              ),
               const PopupMenuItem<String>(
                 value: 'delete',
                 child: Row(
@@ -1356,6 +1385,12 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                     action: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (field.key == 'url')
+                          IconButton(
+                            tooltip: 'Open in browser',
+                            icon: const Icon(Icons.open_in_browser, size: 22),
+                            onPressed: () => _openWebsite(value),
+                          ),
                         if (isObscure)
                           IconButton(
                             icon: Icon(
@@ -1393,16 +1428,6 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                 ],
               );
             }),
-
-            if (item["category"] != null &&
-                item["category"].toString().trim().isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _sectionTitle("Category"),
-                  _infoTile(value: item["category"]),
-                ],
-              ),
           ],
         ),
       ),

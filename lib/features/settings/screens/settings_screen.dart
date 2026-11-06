@@ -10,6 +10,7 @@ import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/theme/theme_provider.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/services/crash_reporter.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/features/settings/screens/about_screen.dart';
 import 'package:ironvault/features/vault/screens/password_health_screen.dart';
 import 'change_pin_screen.dart';
@@ -220,24 +221,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
 
+    var progressDialogVisible = true;
+    final autoLock = ref.read(autoLockProvider.notifier);
     try {
-      ref.read(autoLockProvider.notifier).suspendAutoLock();
+      late final File file;
+      autoLock.suspendAutoLock();
       try {
         final service = BackupService(repo: ref.read(credentialRepoProvider));
-        final file = await service.exportEncryptedBackup(
+        file = await service.exportEncryptedBackup(
           password: passCtrl.text.trim(),
         );
-        if (!ctx.mounted) return;
-        Navigator.pop(ctx);
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(file.path)],
-            text: 'IronVault encrypted backup',
-          ),
-        );
       } finally {
-        ref.read(autoLockProvider.notifier).resumeAutoLock();
+        autoLock.resumeAutoLock();
       }
+
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      progressDialogVisible = false;
+      showAppToastWithAction(
+        ctx,
+        'Encrypted backup created',
+        actionLabel: 'Share',
+        onAction: () => _shareBackup(file),
+      );
     } catch (e) {
       await CrashReporter.captureException(
         e,
@@ -246,7 +252,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         action: 'export_encrypted_backup',
       );
       if (!ctx.mounted) return;
-      Navigator.pop(ctx);
+      if (progressDialogVisible) Navigator.pop(ctx);
       showDialog(
         context: ctx,
         builder: (_) => AlertDialog(
@@ -263,15 +269,59 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _shareBackup(File file) async {
+    final autoLock = ref.read(autoLockProvider.notifier);
+    autoLock.suspendAutoLock();
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'IronVault encrypted backup',
+        ),
+      );
+    } catch (e) {
+      if (mounted) showAppToast(context, 'Could not share backup: $e');
+    } finally {
+      autoLock.resumeAutoLock();
+    }
+  }
+
   Future<void> _importBackup() async {
     final ctx = context;
-    final pick = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['ivault'],
-    );
+    final autoLock = ref.read(autoLockProvider.notifier);
+    FilePickerResult? pick;
+    autoLock.suspendAutoLock();
+    try {
+      pick = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['ivault'],
+      );
+    } finally {
+      autoLock.resumeAutoLock();
+    }
     if (pick == null || pick.files.isEmpty) return;
     final path = pick.files.first.path;
     if (path == null) return;
+
+    try {
+      await BackupService.validateEncryptedBackupFile(File(path));
+    } on BackupRestoreException catch (e) {
+      if (!ctx.mounted) return;
+      await showDialog<void>(
+        context: ctx,
+        builder: (_) => AlertDialog(
+          title: const Text('Cannot restore this file'),
+          content: Text(e.message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     final passCtrl = TextEditingController();
     String? error;
@@ -348,7 +398,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.read(autoLockProvider.notifier).suspendAutoLock();
       try {
         final service = BackupService(repo: ref.read(credentialRepoProvider));
-        final count = await service.importEncryptedBackup(
+        final result = await service.importEncryptedBackup(
           file: File(path),
           password: passCtrl.text.trim(),
         );
@@ -358,8 +408,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         showDialog(
           context: ctx,
           builder: (_) => AlertDialog(
-            title: const Text('Import complete'),
-            content: Text('Imported $count item(s).'),
+            title: Text(
+              result.failed == 0 ? 'Restore complete' : 'Restore partially complete',
+            ),
+            content: Text(
+              result.failed == 0
+                  ? 'Restored ${result.imported} item(s) successfully.'
+                  : 'Restored ${result.imported} item(s). '
+                        '${result.failed} item(s) could not be restored.',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
@@ -383,8 +440,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       showDialog(
         context: ctx,
         builder: (_) => AlertDialog(
-          title: const Text('Import failed'),
-          content: Text('Could not import backup: $e'),
+          title: const Text('Restore failed'),
+          content: Text(
+            e is BackupRestoreException
+                ? e.message
+                : 'Could not restore the backup. The file may be damaged or incompatible.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
@@ -397,10 +458,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _importCsv() async {
-    final pick = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['csv'],
-    );
+    final autoLock = ref.read(autoLockProvider.notifier);
+    FilePickerResult? pick;
+    autoLock.suspendAutoLock();
+    try {
+      pick = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+      );
+    } finally {
+      autoLock.resumeAutoLock();
+    }
     if (pick == null || pick.files.isEmpty) return;
     final path = pick.files.first.path;
     if (path == null) return;
@@ -458,19 +526,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
 
+    var progressDialogVisible = true;
+    final autoLock = ref.read(autoLockProvider.notifier);
     try {
-      ref.read(autoLockProvider.notifier).suspendAutoLock();
+      late final File file;
+      autoLock.suspendAutoLock();
       try {
         final service = CsvExportService(repo: ref.read(credentialRepoProvider));
-        final file = await service.exportPasswordsCsv();
-        if (!ctx.mounted) return;
-        Navigator.pop(ctx);
-        await SharePlus.instance.share(
-          ShareParams(files: [XFile(file.path)], text: 'IronVault CSV export'),
-        );
+        file = await service.exportPasswordsCsv();
       } finally {
-        ref.read(autoLockProvider.notifier).resumeAutoLock();
+        autoLock.resumeAutoLock();
       }
+
+      if (!ctx.mounted) return;
+      Navigator.pop(ctx);
+      progressDialogVisible = false;
+      showAppToastWithAction(
+        ctx,
+        'CSV exported (unencrypted)',
+        actionLabel: 'Share',
+        onAction: () => _shareCsv(file),
+      );
     } catch (e) {
       await CrashReporter.captureException(
         e,
@@ -479,7 +555,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         action: 'export_csv',
       );
       if (!ctx.mounted) return;
-      Navigator.pop(ctx);
+      if (progressDialogVisible) Navigator.pop(ctx);
       showDialog(
         context: ctx,
         builder: (_) => AlertDialog(
@@ -493,6 +569,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
       );
+    }
+  }
+
+  Future<void> _shareCsv(File file) async {
+    final autoLock = ref.read(autoLockProvider.notifier);
+    autoLock.suspendAutoLock();
+    try {
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], text: 'IronVault CSV export'),
+      );
+    } catch (e) {
+      if (mounted) showAppToast(context, 'Could not share CSV: $e');
+    } finally {
+      autoLock.resumeAutoLock();
     }
   }
 

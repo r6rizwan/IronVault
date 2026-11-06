@@ -17,7 +17,9 @@ import 'package:ironvault/features/vault/screens/password_health_screen.dart';
 import 'package:ironvault/features/vault/screens/view_credential_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 
-final dashboardItemsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final dashboardItemsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   ref.watch(vaultRefreshProvider);
   final repo = ref.read(credentialRepoProvider);
   return repo.getAllDecrypted();
@@ -85,10 +87,10 @@ class DashboardScreen extends ConsumerWidget {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 120),
           children: [
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: isDark
@@ -97,7 +99,7 @@ class DashboardScreen extends ConsumerWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.12),
@@ -112,12 +114,12 @@ class DashboardScreen extends ConsumerWidget {
                   const Text(
                     "Vault Overview",
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 14),
                   itemsAsync.when(
                     data: (allItems) {
                       final stats = _statsForItems(allItems);
@@ -136,7 +138,7 @@ class DashboardScreen extends ConsumerWidget {
                           _StatPill(
                             label: 'Weak',
                             value: stats['weak']!.toString(),
-                            color: const Color(0xFFF59E0B),
+                            color: Theme.of(context).colorScheme.tertiary,
                           ),
                         ],
                       );
@@ -152,6 +154,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     error: (_, __) => const SizedBox.shrink(),
                   ),
+                  const SizedBox(height: 16),
                   InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () {
@@ -163,10 +166,13 @@ class DashboardScreen extends ConsumerWidget {
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 13,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(18),
                         border: Border.all(
                           color: Colors.white.withValues(alpha: 0.14),
                         ),
@@ -176,23 +182,37 @@ class DashboardScreen extends ConsumerWidget {
                           Icon(
                             Icons.health_and_safety_outlined,
                             color: Colors.white,
-                            size: 17,
+                            size: 21,
                           ),
-                          SizedBox(width: 8),
+                          SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              "Password Health",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Password Health',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Review weak, reused, and old passwords.',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
+                          SizedBox(width: 8),
                           Icon(
                             Icons.arrow_forward_rounded,
                             color: Colors.white70,
-                            size: 17,
+                            size: 20,
                           ),
                         ],
                       ),
@@ -202,55 +222,12 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 18),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const _SectionHeader(title: "Recent", icon: Icons.history),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CredentialListScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text("See all"),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            itemsAsync.when(
-              data: (allItems) {
-                if (allItems.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Center(child: Text("No recent items")),
-                  );
-                }
-                final items = _recentItems(allItems);
-                return Column(
-                  children: items.map((item) => _RecentTile(item: item)).toList(),
-                );
-              },
-              loading: () => const Column(
-                children: [
-                  _RecentTileSkeleton(),
-                  _RecentTileSkeleton(),
-                  _RecentTileSkeleton(),
-                ],
-              ),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-
-            const SizedBox(height: 22),
+            const SizedBox(height: 28),
 
             _SectionHeader(title: "Quick Add", icon: Icons.add_circle_outline),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             SizedBox(
-              height: 44,
+              height: 48,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: const [
@@ -265,7 +242,7 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 22),
+            const SizedBox(height: 28),
 
             _SectionHeader(
               title: "Categories",
@@ -273,6 +250,8 @@ class DashboardScreen extends ConsumerWidget {
               trailing: ActionChip(
                 avatar: const Icon(Icons.apps, size: 16),
                 label: const Text("All"),
+                backgroundColor: Theme.of(context).cardColor,
+                side: BorderSide(color: Theme.of(context).dividerColor),
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 shape: RoundedRectangleBorder(
@@ -281,14 +260,12 @@ class DashboardScreen extends ConsumerWidget {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const CategoriesScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const CategoriesScreen()),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             itemsAsync.when(
               data: (allItems) {
                 final counts = _categoryCountsForItems(allItems);
@@ -302,7 +279,7 @@ class DashboardScreen extends ConsumerWidget {
                 final shown = topCategories.take(5).toList();
 
                 return SizedBox(
-                  height: 46,
+                  height: 48,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: shown.length + 1,
@@ -312,6 +289,10 @@ class DashboardScreen extends ConsumerWidget {
                         return ActionChip(
                           avatar: const Icon(Icons.add, size: 18),
                           label: const Text("Add"),
+                          backgroundColor: Theme.of(context).cardColor,
+                          side: BorderSide(
+                            color: Theme.of(context).dividerColor,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
                           ),
@@ -329,6 +310,8 @@ class DashboardScreen extends ConsumerWidget {
                       final c = shown[index];
                       return ActionChip(
                         label: Text(c.name),
+                        backgroundColor: Theme.of(context).cardColor,
+                        side: BorderSide(color: Theme.of(context).dividerColor),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24),
                         ),
@@ -347,7 +330,7 @@ class DashboardScreen extends ConsumerWidget {
                 );
               },
               loading: () => SizedBox(
-                height: 46,
+                height: 48,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: 4,
@@ -358,6 +341,59 @@ class DashboardScreen extends ConsumerWidget {
               error: (_, __) => const SizedBox.shrink(),
             ),
 
+            const SizedBox(height: 30),
+
+            Row(
+              children: [
+                const _SectionHeader(title: "Recent", icon: Icons.history),
+                const SizedBox(width: 8),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CredentialListScreen(),
+                      ),
+                    );
+                  },
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text("See all"),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded, size: 16),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            itemsAsync.when(
+              data: (allItems) {
+                if (allItems.isEmpty) {
+                  return _RecentEmptyState();
+                }
+                final items = _recentItems(allItems);
+                return Column(
+                  children: items
+                      .map((item) => _RecentTile(item: item))
+                      .toList(),
+                );
+              },
+              loading: () => const Column(
+                children: [
+                  _RecentTileSkeleton(),
+                  _RecentTileSkeleton(),
+                  _RecentTileSkeleton(),
+                ],
+              ),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
           ],
         ),
       ),
@@ -374,25 +410,32 @@ class _StatPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = color ?? Colors.white;
+    final isEmphasized = color != null;
+    final textColor = isEmphasized ? Colors.amber : Colors.white;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
+        color: Colors.white.withValues(alpha: 0.16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             value,
-            style: TextStyle(fontWeight: FontWeight.w700, color: textColor),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: textColor,
+            ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 7),
           Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.8),
+              color: Colors.white.withValues(alpha: 0.88),
             ),
           ),
         ],
@@ -406,7 +449,7 @@ class _StatPillSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _SkeletonBox(width: 84, height: 34, radius: 999);
+    return const _SkeletonBox(width: 96, height: 38, radius: 999);
   }
 }
 
@@ -425,6 +468,9 @@ class _QuickActionChip extends StatelessWidget {
         color: Theme.of(context).colorScheme.primary,
       ),
       label: Text(def.label),
+      backgroundColor: Theme.of(context).cardColor,
+      side: BorderSide(color: Theme.of(context).dividerColor),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       onPressed: () {
         Navigator.push(
@@ -451,11 +497,16 @@ class _RecentTile extends StatelessWidget {
     if (item['type'] == 'card') {
       final number = (fields['number'] ?? '').toString().replaceAll(' ', '');
       if (number.isEmpty) return 'Card ••••';
-      final last4 = number.length >= 4 ? number.substring(number.length - 4) : number;
+      final last4 = number.length >= 4
+          ? number.substring(number.length - 4)
+          : number;
       return 'Card •••• $last4';
     }
     if (item['type'] == 'bank') {
-      final acct = (fields['account_number'] ?? '').toString().replaceAll(' ', '');
+      final acct = (fields['account_number'] ?? '').toString().replaceAll(
+        ' ',
+        '',
+      );
       if (acct.isEmpty) return 'Bank account';
       final last4 = acct.length >= 4 ? acct.substring(acct.length - 4) : acct;
       return 'A/C •••• $last4';
@@ -502,7 +553,7 @@ class _RecentTile extends StatelessWidget {
     final textMuted = AppThemeColors.textMuted(context);
 
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       onTap: () {
         Navigator.push(
           context,
@@ -510,11 +561,12 @@ class _RecentTile extends StatelessWidget {
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(14),
-        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Theme.of(context).dividerColor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
@@ -563,17 +615,69 @@ class _RecentTile extends StatelessWidget {
   }
 }
 
+class _RecentEmptyState extends StatelessWidget {
+  const _RecentEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.1),
+            child: Icon(
+              Icons.history_rounded,
+              color: Theme.of(context).colorScheme.primary,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'No recent items',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Items you add will appear here.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppThemeColors.textMuted(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RecentTileSkeleton extends StatelessWidget {
   const _RecentTileSkeleton();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Theme.of(context).dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -657,16 +761,13 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
-        if (trailing != null) ...[
-          const Spacer(),
-          trailing!,
-        ],
+        if (trailing != null) ...[const Spacer(), trailing!],
       ],
     );
   }

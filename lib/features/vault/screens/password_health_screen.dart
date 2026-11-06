@@ -92,7 +92,9 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
       MaterialPageRoute(
         builder: (_) => CredentialListScreen(
           titleOverride: title,
-          itemIdFilter: items.map((item) => (item['id'] ?? '').toString()).toSet(),
+          itemIdFilter: items
+              .map((item) => (item['id'] ?? '').toString())
+              .toSet(),
           emptyTitle: emptyTitle,
           emptySubtitle: emptySubtitle,
         ),
@@ -102,15 +104,17 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final passwordItems =
-        _items.where((i) => (i['type'] ?? 'password') == 'password').toList();
+    final passwordItems = _items
+        .where((i) => (i['type'] ?? 'password') == 'password')
+        .toList();
     final reusedGroups = _reusedGroups(passwordItems);
     final weakItems = passwordItems
         .where((i) => _isWeak((i['password'] ?? '').toString()))
         .toList();
     final oldItems = passwordItems
         .where(
-          (i) => _isOld(i['updatedAt'] as DateTime?, i['createdAt'] as DateTime?),
+          (i) =>
+              _isOld(i['updatedAt'] as DateTime?, i['createdAt'] as DateTime?),
         )
         .toList();
     final reusedItems = reusedGroups.values.expand((group) => group).toList();
@@ -119,28 +123,30 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
     final score = total == 0
         ? 0
         : (100 -
-                ((weakItems.length / total) * 40) -
-                ((reusedItems.length / total) * 35) -
-                ((oldItems.length / total) * 25))
-            .round()
-            .clamp(0, 100);
+                  ((weakItems.length / total) * 40) -
+                  ((reusedItems.length / total) * 35) -
+                  ((oldItems.length / total) * 25))
+              .round()
+              .clamp(0, 100);
     final scoreColor = score >= 80
         ? const Color(0xFF10B981)
         : score >= 60
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFFEF4444);
+        ? Theme.of(context).colorScheme.tertiary
+        : const Color(0xFFEF4444);
 
     final issueCards = [
       _HealthIssueData(
         title: 'Weak Passwords',
         description: 'Passwords that are short or easy to guess.',
         count: weakItems.length,
-        color: Colors.orange,
+        color: Theme.of(context).colorScheme.tertiary,
         icon: Icons.password_rounded,
         items: weakItems,
-        actionLabel: 'Review ${weakItems.length} item${weakItems.length == 1 ? '' : 's'}',
+        actionLabel:
+            'Review ${weakItems.length} item${weakItems.length == 1 ? '' : 's'}',
         emptyTitle: 'No weak passwords',
-        emptySubtitle: 'Your saved passwords are meeting the current strength rules.',
+        emptySubtitle:
+            'Your saved passwords are meeting the current strength rules.',
       ),
       _HealthIssueData(
         title: 'Reused Passwords',
@@ -149,18 +155,21 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
         color: Colors.redAccent,
         icon: Icons.content_copy_rounded,
         items: reusedItems,
-        actionLabel: 'Review ${reusedItems.length} item${reusedItems.length == 1 ? '' : 's'}',
+        actionLabel:
+            'Review ${reusedItems.length} item${reusedItems.length == 1 ? '' : 's'}',
         emptyTitle: 'No reused passwords',
         emptySubtitle: 'Each saved password currently appears unique.',
       ),
       _HealthIssueData(
         title: 'Old Passwords',
-        description: 'Passwords older than $_oldDays days that may need rotation.',
+        description:
+            'Passwords older than $_oldDays days that may need rotation.',
         count: oldItems.length,
-        color: Colors.amber.shade700,
+        color: Theme.of(context).colorScheme.tertiary,
         icon: Icons.history_toggle_off_rounded,
         items: oldItems,
-        actionLabel: 'Review ${oldItems.length} item${oldItems.length == 1 ? '' : 's'}',
+        actionLabel:
+            'Review ${oldItems.length} item${oldItems.length == 1 ? '' : 's'}',
         emptyTitle: 'No old passwords',
         emptySubtitle: 'No saved passwords are currently flagged as aging.',
       ),
@@ -169,9 +178,9 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
     final topPriority = issueCards
         .where((issue) => issue.count > 0)
         .fold<_HealthIssueData?>(null, (best, current) {
-      if (best == null) return current;
-      return current.count > best.count ? current : best;
-    });
+          if (best == null) return current;
+          return current.count > best.count ? current : best;
+        });
 
     return Scaffold(
       appBar: AppBar(title: const Text('Password Health')),
@@ -253,7 +262,10 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: scoreColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -299,9 +311,17 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
             runSpacing: 10,
             children: [
               _metricChip('Total', total.toString()),
-              _metricChip('Weak', weak.toString(), color: Colors.orange),
+              _metricChip(
+                'Weak',
+                weak.toString(),
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
               _metricChip('Reused', reused.toString(), color: Colors.redAccent),
-              _metricChip('Old', old.toString(), color: Colors.amber),
+              _metricChip(
+                'Old',
+                old.toString(),
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
             ],
           ),
         ],
@@ -441,7 +461,9 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -570,10 +592,7 @@ class _PasswordHealthScreenState extends ConsumerState<PasswordHealthScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
               if (username.isNotEmpty)
                 Text(
                   username,

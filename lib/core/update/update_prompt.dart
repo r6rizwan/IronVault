@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025-2026 Rizwan Mulla
 // SPDX-License-Identifier: GPL-3.0-only
 import 'package:flutter/material.dart';
+import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'app_update_service.dart';
 
@@ -8,6 +9,7 @@ class UpdatePrompt {
   static Future<void> show(
     BuildContext context,
     AppUpdateInfo info,
+    AutoLockController autoLock,
   ) async {
     final theme = Theme.of(context);
     await showDialog(
@@ -44,7 +46,12 @@ class UpdatePrompt {
             ElevatedButton(
               onPressed: () async {
                 final uri = Uri.parse(info.apkUrl);
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                autoLock.suspendAutoLock();
+                try {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } finally {
+                  autoLock.resumeAutoLock();
+                }
                 if (context.mounted) Navigator.pop(context);
               },
               child: const Text('Update'),

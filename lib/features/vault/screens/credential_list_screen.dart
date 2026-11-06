@@ -51,12 +51,9 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
   void initState() {
     super.initState();
     _loadCredentials();
-    _refreshSub = ref.listenManual<int>(
-      vaultRefreshProvider,
-      (_, __) {
-        if (mounted) _loadCredentials();
-      },
-    );
+    _refreshSub = ref.listenManual<int>(vaultRefreshProvider, (_, __) {
+      if (mounted) _loadCredentials();
+    });
   }
 
   @override
@@ -132,11 +129,16 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
     if (item['type'] == 'card') {
       final number = (fields['number'] ?? '').toString().replaceAll(' ', '');
       if (number.isEmpty) return 'Card ••••';
-      final last4 = number.length >= 4 ? number.substring(number.length - 4) : number;
+      final last4 = number.length >= 4
+          ? number.substring(number.length - 4)
+          : number;
       return 'Card •••• $last4';
     }
     if (item['type'] == 'bank') {
-      final acct = (fields['account_number'] ?? '').toString().replaceAll(' ', '');
+      final acct = (fields['account_number'] ?? '').toString().replaceAll(
+        ' ',
+        '',
+      );
       if (acct.isEmpty) return 'Bank account';
       final last4 = acct.length >= 4 ? acct.substring(acct.length - 4) : acct;
       return 'A/C •••• $last4';
@@ -195,12 +197,22 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                 ),
               ),
               const SizedBox(height: 14),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Sort by',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
               _buildSortTile(
                 ctx,
                 "Favorites First",
                 SortOption.favoritesFirst,
                 Icons.star,
-                Colors.amber,
+                Theme.of(context).colorScheme.tertiary,
               ),
               _buildSortTile(
                 ctx,
@@ -240,7 +252,6 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
 
   void openSortSheetFromParent() => _openSortSheet();
 
-
   ListTile _buildSortTile(
     BuildContext ctx,
     String text,
@@ -248,9 +259,14 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
     IconData icon,
     Color highlight,
   ) {
+    final selected = _sortBy == option;
     return ListTile(
+      selected: selected,
       title: Text(text),
-      leading: Icon(icon, color: _sortBy == option ? highlight : null),
+      leading: Icon(icon, color: selected ? highlight : null),
+      trailing: selected
+          ? Icon(Icons.check_circle_rounded, color: highlight)
+          : null,
       onTap: () {
         setState(() {
           _sortBy = option;
@@ -288,8 +304,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
         if (item["title"]?.toString().toLowerCase().contains(q) == true) {
           return true;
         }
-        final fields =
-            (item["fields"] as Map?)?.cast<String, dynamic>() ?? {};
+        final fields = (item["fields"] as Map?)?.cast<String, dynamic>() ?? {};
         for (final v in fields.values) {
           if (v?.toString().toLowerCase().contains(q) == true) return true;
         }
@@ -309,7 +324,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.swap_vert_rounded),
-                  tooltip: "Sort",
+                  tooltip: "Sort by ${_sortLabel()}",
                   onPressed: _openSortSheet,
                 ),
                 if (!hasCategoryFilter && !hasItemIdFilter)
@@ -354,32 +369,25 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                         if (hasCategoryFilter || hasItemIdFilter)
                           SliverToBoxAdapter(
                             child: Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                               child: TextField(
                                 controller: _searchController,
                                 onChanged: (val) {
-                                  setState(
-                                    () => _searchQuery = val.trim(),
-                                  );
+                                  setState(() => _searchQuery = val.trim());
                                   if (_scrollController.hasClients) {
                                     _scrollController.jumpTo(0);
                                   }
                                 },
                                 decoration: InputDecoration(
                                   hintText: 'Search in this list…',
-                                  prefixIcon: const Icon(
-                                    Icons.search_rounded,
-                                  ),
+                                  prefixIcon: const Icon(Icons.search_rounded),
                                   suffixIcon: _searchQuery.isEmpty
                                       ? null
                                       : IconButton(
                                           icon: const Icon(Icons.close),
                                           onPressed: () {
                                             _searchController.clear();
-                                            setState(
-                                              () => _searchQuery = '',
-                                            );
+                                            setState(() => _searchQuery = '');
                                           },
                                         ),
                                   filled: true,
@@ -394,45 +402,47 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                             hasScrollBody: false,
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(
-                                16, 0, 16, 120,
+                                16,
+                                0,
+                                16,
+                                120,
                               ),
                               child: EmptyState(
                                 icon: _searchQuery.isNotEmpty
                                     ? Icons.search_off_rounded
                                     : hasItemIdFilter
-                                        ? Icons.health_and_safety_outlined
-                                        : Icons.lock_open_rounded,
+                                    ? Icons.health_and_safety_outlined
+                                    : Icons.lock_open_rounded,
                                 title: _searchQuery.isNotEmpty
                                     ? 'No results for "$_searchQuery"'
                                     : widget.emptyTitle ??
-                                        'Your vault is empty',
+                                          'Your vault is empty',
                                 subtitle: _searchQuery.isNotEmpty
                                     ? 'Try a different keyword.'
                                     : widget.emptySubtitle ??
-                                        'Add your first item to start storing passwords, notes, cards, and documents.',
+                                          'Add your first item to start storing passwords, notes, cards, and documents.',
                               ),
                             ),
                           )
                         // ── Item list ──────────────────────────────
                         else
                           SliverPadding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
                             sliver: SliverList.separated(
                               itemCount: filteredItems.length,
                               separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 14),
                               itemBuilder: (_, index) {
                                 final item = filteredItems[index];
                                 final isFav = item["isFavorite"] == true;
 
                                 return InkWell(
-                                  borderRadius: BorderRadius.circular(18),
+                                  borderRadius: BorderRadius.circular(20),
                                   onTap: () async {
                                     final savedOffset =
                                         _scrollController.hasClients
-                                            ? _scrollController.offset
-                                            : 0.0;
+                                        ? _scrollController.offset
+                                        : 0.0;
                                     final _ = await Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -444,24 +454,27 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                       await _loadCredentials();
                                       WidgetsBinding.instance
                                           .addPostFrameCallback((_) {
-                                        if (_scrollController.hasClients) {
-                                          _scrollController.jumpTo(
-                                            savedOffset.clamp(
-                                              0.0,
-                                              _scrollController
-                                                  .position.maxScrollExtent,
-                                            ),
-                                          );
-                                        }
-                                      });
+                                            if (_scrollController.hasClients) {
+                                              _scrollController.jumpTo(
+                                                savedOffset.clamp(
+                                                  0.0,
+                                                  _scrollController
+                                                      .position
+                                                      .maxScrollExtent,
+                                                ),
+                                              );
+                                            }
+                                          });
                                     }
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
                                       color: Theme.of(context).cardColor,
-                                      borderRadius:
-                                          BorderRadius.circular(18),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: Theme.of(context).dividerColor,
+                                      ),
                                       boxShadow: [
                                         BoxShadow(
                                           blurRadius: 12,
@@ -485,9 +498,9 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                             typeByKey(
                                               item['type'] ?? 'password',
                                             ).icon,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
                                           ),
                                         ),
                                         const SizedBox(width: 14),
@@ -517,8 +530,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                                 Text(
                                                   _subtitleForItem(item),
                                                   style: TextStyle(
-                                                    color:
-                                                        Colors.grey.shade600,
+                                                    color: Colors.grey.shade600,
                                                     fontSize: 13,
                                                   ),
                                                 ),
@@ -530,14 +542,40 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                                 Padding(
                                                   padding:
                                                       const EdgeInsets.only(
-                                                    top: 4,
-                                                  ),
-                                                  child: Text(
-                                                    item["category"],
-                                                    style: TextStyle(
-                                                      color:
-                                                          Colors.grey.shade500,
-                                                      fontSize: 12,
+                                                        top: 7,
+                                                      ),
+                                                  child: Align(
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 9,
+                                                            vertical: 4,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primary
+                                                            .withValues(
+                                                              alpha: 0.1,
+                                                            ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              999,
+                                                            ),
+                                                      ),
+                                                      child: Text(
+                                                        item["category"],
+                                                        style: TextStyle(
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary,
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
@@ -552,7 +590,9 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                                 ? Icons.star_rounded
                                                 : Icons.star_border_rounded,
                                             color: isFav
-                                                ? Colors.amber
+                                                ? Theme.of(
+                                                    context,
+                                                  ).colorScheme.tertiary
                                                 : Colors.grey,
                                             size: 24,
                                           ),
