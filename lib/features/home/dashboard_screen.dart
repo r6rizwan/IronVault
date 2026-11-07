@@ -87,10 +87,10 @@ class DashboardScreen extends ConsumerWidget {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 120),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
           children: [
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: isDark
@@ -119,7 +119,7 @@ class DashboardScreen extends ConsumerWidget {
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   itemsAsync.when(
                     data: (allItems) {
                       final stats = _statsForItems(allItems);
@@ -154,7 +154,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                     error: (_, __) => const SizedBox.shrink(),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   InkWell(
                     borderRadius: BorderRadius.circular(16),
                     onTap: () {
@@ -168,7 +168,7 @@ class DashboardScreen extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
-                        vertical: 13,
+                        vertical: 11,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
@@ -222,27 +222,27 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 18),
 
             _SectionHeader(title: "Quick Add", icon: Icons.add_circle_outline),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             SizedBox(
-              height: 48,
+              height: 44,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: const [
                   _QuickActionChip(typeKey: 'password'),
-                  SizedBox(width: 10),
+                  SizedBox(width: 8),
                   _QuickActionChip(typeKey: 'note'),
-                  SizedBox(width: 10),
+                  SizedBox(width: 8),
                   _QuickActionChip(typeKey: 'card'),
-                  SizedBox(width: 10),
+                  SizedBox(width: 8),
                   _QuickActionChip(typeKey: 'document'),
                 ],
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 18),
 
             _SectionHeader(
               title: "Categories",
@@ -265,7 +265,7 @@ class DashboardScreen extends ConsumerWidget {
                 },
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             itemsAsync.when(
               data: (allItems) {
                 final counts = _categoryCountsForItems(allItems);
@@ -279,11 +279,11 @@ class DashboardScreen extends ConsumerWidget {
                 final shown = topCategories.take(5).toList();
 
                 return SizedBox(
-                  height: 48,
+                  height: 44,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: shown.length + 1,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (context, index) {
                       if (index == shown.length) {
                         return ActionChip(
@@ -330,18 +330,18 @@ class DashboardScreen extends ConsumerWidget {
                 );
               },
               loading: () => SizedBox(
-                height: 48,
+                height: 44,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: 4,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (_, __) => const _ChipSkeleton(width: 108),
                 ),
               ),
               error: (_, __) => const SizedBox.shrink(),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
             Row(
               children: [
@@ -372,7 +372,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             itemsAsync.when(
               data: (allItems) {
                 if (allItems.isEmpty) {
@@ -561,8 +561,8 @@ class _RecentTile extends StatelessWidget {
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(13),
+        margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(20),

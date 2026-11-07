@@ -13,6 +13,9 @@ import 'package:local_auth/local_auth.dart';
 class AppReauthUtil {
   AppReauthUtil._();
 
+  static const _failedPinAttemptsKey = 'failed_pin_attempts';
+  static const _pinCooldownUntilKey = 'pin_cooldown_until';
+
   static Future<bool> confirmIdentity(
     BuildContext context,
     WidgetRef ref, {
@@ -50,10 +53,45 @@ class AppReauthUtil {
     return _promptForPin(context, ref);
   }
 
-  static Future<bool> _promptForPin(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  static Future<bool> verifyMasterPin(WidgetRef ref, String pin) async {
+    if (pin.length != 4) return false;
+    final storage = ref.read(secureStorageProvider);
+    final cooldownUntil = DateTime.tryParse(
+      await storage.readValue(_pinCooldownUntilKey) ?? '',
+    );
+    if (cooldownUntil?.isAfter(DateTime.now()) == true) return false;
+
+    final stored = await storage.readPinHash();
+    if (stored == null) return false;
+    final valid = await _verifyPin(pin, stored, ref);
+    if (valid) {
+      await storage.deleteValue(_failedPinAttemptsKey);
+      await storage.deleteValue(_pinCooldownUntilKey);
+      return true;
+    }
+
+    final failures =
+        (int.tryParse(await storage.readValue(_failedPinAttemptsKey) ?? '') ??
+            0) +
+        1;
+    await storage.writeValue(_failedPinAttemptsKey, failures.toString());
+    final cooldown = failures >= 10
+        ? const Duration(minutes: 15)
+        : failures >= 8
+        ? const Duration(minutes: 5)
+        : failures >= 5
+        ? const Duration(seconds: 30)
+        : null;
+    if (cooldown != null) {
+      await storage.writeValue(
+        _pinCooldownUntilKey,
+        DateTime.now().add(cooldown).toIso8601String(),
+      );
+    }
+    return false;
+  }
+
+  static Future<bool> _promptForPin(BuildContext context, WidgetRef ref) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => _PinConfirmDialog(ref: ref),
@@ -320,8 +358,9 @@ class _PinConfirmDialogState extends ConsumerState<_PinConfirmDialog> {
                   ),
                   const SizedBox(width: 8),
                   TextButton(
-                    onPressed:
-                        _submitting || _pin.length < _pinLength ? null : _confirm,
+                    onPressed: _submitting || _pin.length < _pinLength
+                        ? null
+                        : _confirm,
                     child: Text(_submitting ? 'Checking...' : 'Confirm'),
                   ),
                 ],

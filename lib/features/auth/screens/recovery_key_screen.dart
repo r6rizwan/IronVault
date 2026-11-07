@@ -1,10 +1,13 @@
 // SPDX-FileCopyrightText: 2025-2026 Rizwan Mulla
 // SPDX-License-Identifier: GPL-3.0-only
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
+import 'package:ironvault/core/constants.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/utils/app_reauth_util.dart';
 import 'package:ironvault/core/utils/recovery_key.dart';
@@ -40,6 +43,8 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
   bool _isRevealed = false;
   bool _confirming = false;
   bool _confirmedThisSession = false;
+  Timer? _clipboardClearTimer;
+  String? _lastCopiedValue;
   String _busyMessage = 'Saving your recovery key confirmation...';
 
   @override
@@ -53,17 +58,8 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
     return key.replaceAll(RegExp(r'[A-Z0-9]'), '•');
   }
 
-  Future<void> _toggleRecoveryKeyVisibility() async {
-    if (_recoveryKey == null) return;
-    if (_isRevealed) {
-      setState(() => _isRevealed = false);
-      return;
-    }
-
-    if (widget.trustedForReveal) {
-      setState(() => _isRevealed = true);
-      return;
-    }
+  Future<bool> _ensureRecoveryKeyAuthorized() async {
+    if (_isRevealed || widget.trustedForReveal) return true;
 
     final autoLock = ref.read(autoLockProvider.notifier);
     autoLock.suspendAutoLock();
@@ -72,7 +68,7 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
       didAuthenticate = await AppReauthUtil.confirmIdentity(
         context,
         ref,
-        reason: 'Re-authenticate to reveal your recovery key',
+        reason: 'Re-authenticate to access your recovery key',
       );
     } finally {
       autoLock.resumeAutoLock();
@@ -80,12 +76,66 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
 
     if (!mounted || !didAuthenticate) {
       if (mounted) {
-        showAppToast(context, 'Verification required to reveal the key');
+        showAppToast(context, 'Verification required to access the key');
       }
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _toggleRecoveryKeyVisibility() async {
+    if (_recoveryKey == null) return;
+    if (_isRevealed) {
+      setState(() => _isRevealed = false);
       return;
     }
 
+    if (!await _ensureRecoveryKeyAuthorized()) return;
+
     setState(() => _isRevealed = true);
+  }
+
+  Future<void> _copyRecoveryKey() async {
+    final key = _recoveryKey;
+    if (key == null) return;
+
+    final storage = ref.read(secureStorageProvider);
+    final clipboardDisabled =
+        (await storage.readValue('disable_clipboard_copy') ?? 'false') ==
+        'true';
+    if (!mounted) return;
+    if (clipboardDisabled) {
+      showAppToast(context, 'Clipboard copying is disabled in Settings');
+      return;
+    }
+
+    if (!await _ensureRecoveryKeyAuthorized()) return;
+
+    try {
+      await Clipboard.setData(ClipboardData(text: key));
+    } catch (_) {
+      if (mounted) showAppToast(context, 'Could not copy the recovery key');
+      return;
+    }
+    _clipboardClearTimer?.cancel();
+    _lastCopiedValue = key;
+    _clipboardClearTimer = Timer(
+      const Duration(seconds: AppConstants.clipboardClearSeconds),
+      () async {
+        try {
+          final data = await Clipboard.getData('text/plain');
+          if (data?.text == _lastCopiedValue) {
+            await Clipboard.setData(const ClipboardData(text: ''));
+          }
+        } catch (_) {}
+      },
+    );
+    if (mounted) {
+      showAppToast(
+        context,
+        'Recovery key copied. Clipboard clears in ${AppConstants.clipboardClearSeconds} seconds.',
+      );
+    }
   }
 
   Future<void> _promptAndGenerateRecoveryKey() async {
@@ -337,6 +387,11 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                                     : 'Reveal key',
                                 onPressed: _toggleRecoveryKeyVisibility,
                               ),
+                              IconButton(
+                                icon: const Icon(Icons.copy_rounded),
+                                tooltip: 'Copy recovery key',
+                                onPressed: _copyRecoveryKey,
+                              ),
                             ],
                           ),
                         )
@@ -377,25 +432,26 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
                         ),
                       ],
                       const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.tertiary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Write this key down and store it somewhere safe.\nDo not screenshot or copy it.',
-                          textAlign: TextAlign.left,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.tertiary,
-                            fontWeight: FontWeight.w600,
+                      if (_recoveryKey != null)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.tertiary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Store this key somewhere safe. Copying places it on your clipboard temporarily; avoid sharing it.',
+                            textAlign: TextAlign.left,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.tertiary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
                       const Spacer(),
                       SizedBox(
                         width: double.infinity,

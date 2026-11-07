@@ -15,6 +15,9 @@ It stores vault data locally on the device and protects it with strong encryptio
 - In-app privacy, update, issue-reporting, and share-app links from the About screen
 
 ## Recent Highlights
+- Added a deliberate vault-erasure flow requiring the master PIN and typing `DELETE`; external backup copies remain outside the app's control.
+- Item-type changes now explain which fields carry over and which are discarded before applying the change.
+- Recovery keys can be copied with verification and automatic clipboard clearing after 20 seconds.
 - Refined Home, Vault, Search, Password Health, and credential detail layouts with theme-aware contrast and clearer spacing.
 - Password items support an optional website URL and direct browser opening.
 - Credential sharing lets users select which fields to include.
@@ -54,6 +57,8 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Recovery key flow for PIN recovery with protected reveal
 - Recovery key setup that can be resumed until the user confirms it has been saved
 - Recovery key management from Settings with re-authentication and manual in-screen generation
+- Recovery key copying with verification, clipboard preference support, and automatic clearing
+- Permanent vault erasure from Settings with PIN verification and typed confirmation
 - PIN retry cooldown after repeated failed attempts
 - New-item draft restore and keep/discard draft prompt on exit
 - Encrypted backup restore with integrity and format checks, plus CSV password import/export with column mapping and duplicate choices

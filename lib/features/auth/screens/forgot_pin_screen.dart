@@ -3,11 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
-import 'package:ironvault/core/utils/recovery_key.dart';
+import 'package:ironvault/core/utils/vault_wipe_util.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/widgets/blocking_loading_overlay.dart';
+import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/features/auth/screens/recovery_key_verify_screen.dart';
 import 'package:ironvault/features/auth/screens/setup_master_pin_screen.dart';
+import 'package:ironvault/features/categories/providers/category_provider.dart';
 
 class ForgotPinScreen extends ConsumerStatefulWidget {
   const ForgotPinScreen({super.key});
@@ -17,9 +19,6 @@ class ForgotPinScreen extends ConsumerStatefulWidget {
 }
 
 class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
-  static const _failedPinAttemptsKey = 'failed_pin_attempts';
-  static const _pinCooldownUntilKey = 'pin_cooldown_until';
-
   bool _resetting = false;
 
   Future<void> _resetVault() async {
@@ -51,13 +50,19 @@ class _ForgotPinScreenState extends ConsumerState<ForgotPinScreen> {
 
     final storage = ref.read(secureStorageProvider);
     final db = ref.read(dbProvider);
-    await db.delete(db.credentials).go();
-    await storage.deleteMasterKey();
-    await storage.deletePinHash();
-    await storage.deleteRecoveryKeyHash();
-    await RecoveryKeyUtil.clearPendingState(storage);
-    await storage.deleteValue(_failedPinAttemptsKey);
-    await storage.deleteValue(_pinCooldownUntilKey);
+    try {
+      await VaultWipeUtil.wipe(db: db, storage: storage);
+      ref.invalidate(categoryListProvider);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _resetting = false);
+        showAppToast(
+          context,
+          'Reset did not finish. Some data may already be erased; retry to complete.',
+        );
+      }
+      return;
+    }
 
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(

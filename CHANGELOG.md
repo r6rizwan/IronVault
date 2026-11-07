@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.1
+
+- Added a dedicated Settings flow to erase vault data after master PIN verification and explicit `DELETE` confirmation.
+- Wiping now removes vault items, document attachments, custom categories, drafts, private app exports, and recovery/encryption keys while preserving app preferences.
+- Prevented silent data loss when changing item types by confirming conversions, carrying compatible fields, and identifying fields that will be dropped.
+- Added protected recovery-key copying with the clipboard preference and automatic clearing after 20 seconds; save guidance appears only when a key is displayed.
+- Reduced excess spacing on the Home and Vault credential-list screens.
+- Kept the privacy cover for backgrounded app states without obscuring the app when the notification shade is opened.
+
 ## v1.2.0
 
 - Refined Home, Vault, Search, Password Health, and credential detail layouts with clearer spacing, grouping, and theme-aware contrast.

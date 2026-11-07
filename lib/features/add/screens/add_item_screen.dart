@@ -132,13 +132,91 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     }
   }
 
-  void _onTypeChanged(String? value) {
-    if (value == null) return;
+  Future<void> _onTypeChanged(String? value) async {
+    if (value == null || value == _typeKey) return;
+
+    final sourceType = typeByKey(_typeKey);
+    final targetType = typeByKey(value);
+    final sourceFields = _collectFields();
+    final targetKeys = targetType.fields.map((field) => field.key).toSet();
+    final movedNoteToNotes =
+        sourceFields['note']?.trim().isNotEmpty == true &&
+        targetKeys.contains('notes');
+    final movedNotesToNote =
+        sourceFields['notes']?.trim().isNotEmpty == true &&
+        targetKeys.contains('note');
+    final droppedFields = <String>[];
+    for (final field in sourceType.fields) {
+      final hasValue = field.key == 'scans'
+          ? _scanPaths.isNotEmpty
+          : sourceFields[field.key]?.trim().isNotEmpty == true;
+      final isMapped =
+          targetKeys.contains(field.key) ||
+          (field.key == 'note' && targetKeys.contains('notes')) ||
+          (field.key == 'notes' && targetKeys.contains('note'));
+      if (hasValue && !isMapped) droppedFields.add(field.label);
+    }
+    if (_selectedCategory != null && value != 'password') {
+      droppedFields.add('Category: $_selectedCategory');
+    }
+
+    final hasEnteredData =
+        widget.existingItem != null ||
+        _titleController.text.trim().isNotEmpty ||
+        _selectedCategory != null ||
+        _scanPaths.isNotEmpty ||
+        sourceFields.values.any((value) => value.trim().isNotEmpty);
+    final confirmed = !hasEnteredData
+        ? true
+        : await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Change item type?'),
+              content: Text(
+                [
+                  'Convert ${sourceType.label} to ${targetType.label}?',
+                  if (movedNoteToNotes)
+                    'Secure Note content will move into Notes.',
+                  if (movedNotesToNote)
+                    'Notes content will move into Secure Note.',
+                  if (droppedFields.isNotEmpty)
+                    'These fields will not carry over: ${droppedFields.join(', ')}.',
+                  widget.existingItem == null
+                      ? 'The new type is applied only when you save this item.'
+                      : 'The conversion is saved only after you tap Save Changes.',
+                ].join('\n\n'),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Change type'),
+                ),
+              ],
+            ),
+          );
+    if (confirmed != true || !mounted) return;
+
+    final carriedFields = <String, String>{};
+    for (final field in targetType.fields) {
+      final currentValue = sourceFields[field.key];
+      if (currentValue != null) carriedFields[field.key] = currentValue;
+    }
+    if (movedNoteToNotes) {
+      carriedFields['notes'] = sourceFields['note']!;
+    }
+    if (movedNotesToNote) {
+      carriedFields['note'] = sourceFields['notes']!;
+    }
+
     setState(() {
       _typeKey = value;
       _initControllersForType(value);
-      if (_typeKey != 'password') {
-        _selectedCategory = null;
+      for (final entry in carriedFields.entries) {
+        _controllers[entry.key]?.text = entry.value;
       }
       _fieldErrors.clear();
       _titleError = null;
@@ -813,9 +891,7 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
     final obscure = _obscure[field.key] ?? false;
     final suffix = field.obscure
         ? IconButton(
-            icon: Icon(
-              obscure ? Icons.visibility : Icons.visibility_off,
-            ),
+            icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
             onPressed: () {
               setState(() {
                 _obscure[field.key] = !obscure;
@@ -1403,11 +1479,16 @@ class _AddItemScreenState extends ConsumerState<AddItemScreen> {
                             _ => 'Item details',
                           },
                           switch (_typeKey) {
-                            'password' => 'The username and password for this login.',
-                            'bank' => 'Information to identify and access this account.',
-                            'card' => 'Payment card information stored in your vault.',
-                            'document' => 'Attach pages or add identifying details.',
-                            'note' => 'Write information you want to keep private.',
+                            'password' =>
+                              'The username and password for this login.',
+                            'bank' =>
+                              'Information to identify and access this account.',
+                            'card' =>
+                              'Payment card information stored in your vault.',
+                            'document' =>
+                              'Attach pages or add identifying details.',
+                            'note' =>
+                              'Write information you want to keep private.',
                             _ => '',
                           },
                         ),

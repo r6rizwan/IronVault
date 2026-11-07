@@ -12,6 +12,7 @@ import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/services/crash_reporter.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
 import 'package:ironvault/features/settings/screens/about_screen.dart';
+import 'package:ironvault/features/settings/screens/erase_vault_screen.dart';
 import 'package:ironvault/features/vault/screens/password_health_screen.dart';
 import 'change_pin_screen.dart';
 import 'package:ironvault/features/auth/screens/pin_unlock_screen.dart';
@@ -796,6 +797,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const AboutScreen()),
+              );
+            },
+          ),
+
+          const SizedBox(height: 20),
+          _sectionTitle("Danger Zone"),
+          _settingsTile(
+            context,
+            icon: Icons.delete_forever_outlined,
+            title: "Erase All Vault Data",
+            subtitle: "Permanently delete vault items and encryption keys",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EraseVaultScreen()),
               );
             },
           ),

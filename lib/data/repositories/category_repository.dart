@@ -202,4 +202,9 @@ class CategoryRepository {
     final database = await db;
     return database.delete(_table, where: 'id = ?', whereArgs: [id]);
   }
+
+  Future<void> clearAll() async {
+    final database = await db;
+    await database.delete(_table);
+  }
 }

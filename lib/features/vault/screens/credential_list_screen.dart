@@ -349,10 +349,10 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
         builder: (context) {
           return _loading
               ? Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 120),
                   child: ListView.separated(
                     itemCount: 6,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (_, __) => const _VaultItemSkeleton(),
                   ),
                 )
@@ -369,7 +369,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                         if (hasCategoryFilter || hasItemIdFilter)
                           SliverToBoxAdapter(
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                              padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
                               child: TextField(
                                 controller: _searchController,
                                 onChanged: (val) {
@@ -427,11 +427,11 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                         // ── Item list ──────────────────────────────
                         else
                           SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                            padding: const EdgeInsets.fromLTRB(14, 6, 14, 120),
                             sliver: SliverList.separated(
                               itemCount: filteredItems.length,
                               separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 10),
                               itemBuilder: (_, index) {
                                 final item = filteredItems[index];
                                 final isFav = item["isFavorite"] == true;
@@ -468,7 +468,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                     }
                                   },
                                   child: Container(
-                                    padding: const EdgeInsets.all(16),
+                                    padding: const EdgeInsets.all(13),
                                     decoration: BoxDecoration(
                                       color: Theme.of(context).cardColor,
                                       borderRadius: BorderRadius.circular(20),
@@ -489,7 +489,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                     child: Row(
                                       children: [
                                         CircleAvatar(
-                                          radius: 22,
+                                          radius: 20,
                                           backgroundColor: Theme.of(context)
                                               .colorScheme
                                               .primary
@@ -503,7 +503,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                             ).colorScheme.primary,
                                           ),
                                         ),
-                                        const SizedBox(width: 14),
+                                        const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment:
@@ -542,7 +542,7 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                                 Padding(
                                                   padding:
                                                       const EdgeInsets.only(
-                                                        top: 7,
+                                                        top: 5,
                                                       ),
                                                   child: Align(
                                                     alignment:
