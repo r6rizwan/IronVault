@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.3.0
+
+- Added Wi-Fi Network, API Credential, Recovery Codes & Keys, and Software License vault item types.
+- Masked sensitive fields by default and required re-authentication to reveal, copy, or share them.
+- Hid sensitive values from item previews and field-based search.
+
 ## v1.2.1
 
 - Added a dedicated Settings flow to erase vault data after master PIN verification and explicit `DELETE` confirmation.
