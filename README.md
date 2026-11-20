@@ -49,6 +49,10 @@ It stores vault data locally on the device and protects it with strong encryptio
   - Cards
   - Secure notes
   - Documents
+  - Wi-Fi networks
+  - API credentials
+  - Recovery codes and keys
+  - Software licenses
 - Search and filtering
 - Optional website URL on passwords with a direct browser action
 - Category support with rename propagation across existing saved items
@@ -69,6 +73,7 @@ It stores vault data locally on the device and protects it with strong encryptio
 - Vault data is encrypted before storage; the master PIN is stored as a hash
 - IronVault does not use cloud sync
 - Recovery key reveal requires re-authentication and supports biometrics or PIN fallback
+- Fields marked as sensitive are masked by default and require re-authentication to reveal, copy, or share; they are excluded from item previews and search
 - PIN retry cooldown and clipboard clearing help reduce common exposure risks
 - Android screenshot and recents-preview protection is enabled; behavior can vary by device and OEM
 - Sentry crash reporting is enabled for release builds with safe metadata capture

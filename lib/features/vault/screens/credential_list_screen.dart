@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // ignore_for_file: deprecated_member_use
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/features/categories/categories_screen.dart';
 import 'package:ironvault/core/constants/item_types.dart';
+import 'package:ironvault/core/utils/item_display_utils.dart';
 import 'view_credential_screen.dart';
 import 'package:ironvault/core/widgets/empty_state.dart';
 
@@ -119,61 +118,6 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
 
     await repo.toggleFavorite(item["id"], newState);
     await _loadCredentials();
-  }
-
-  String _subtitleForItem(Map<String, dynamic> item) {
-    final fields = (item['fields'] as Map?)?.cast<String, dynamic>() ?? {};
-    if (item['type'] == 'password') {
-      return (fields['username'] ?? item['username'] ?? '').toString();
-    }
-    if (item['type'] == 'card') {
-      final number = (fields['number'] ?? '').toString().replaceAll(' ', '');
-      if (number.isEmpty) return 'Card ••••';
-      final last4 = number.length >= 4
-          ? number.substring(number.length - 4)
-          : number;
-      return 'Card •••• $last4';
-    }
-    if (item['type'] == 'bank') {
-      final acct = (fields['account_number'] ?? '').toString().replaceAll(
-        ' ',
-        '',
-      );
-      if (acct.isEmpty) return 'Bank account';
-      final last4 = acct.length >= 4 ? acct.substring(acct.length - 4) : acct;
-      return 'A/C •••• $last4';
-    }
-    if (item['type'] == 'document') {
-      final documentId = (fields['document_id'] ?? '').toString().trim();
-      if (documentId.isNotEmpty) {
-        return 'ID: $documentId';
-      }
-
-      final notes = (fields['notes'] ?? '').toString().trim();
-      if (notes.isNotEmpty) {
-        return notes;
-      }
-
-      final rawScans = (fields['scans'] ?? '').toString().trim();
-      if (rawScans.isNotEmpty) {
-        try {
-          final decoded = jsonDecode(rawScans);
-          if (decoded is List) {
-            final count = decoded.length;
-            if (count > 0) {
-              return count == 1 ? '1 scanned page' : '$count scanned pages';
-            }
-          }
-        } catch (_) {}
-      }
-
-      return 'Saved document';
-    }
-    for (final v in fields.values) {
-      final text = v?.toString() ?? '';
-      if (text.trim().isNotEmpty) return text;
-    }
-    return '';
   }
 
   void _openSortSheet() {
@@ -524,11 +468,11 @@ class CredentialListScreenState extends ConsumerState<CredentialListScreen> {
                                                 ],
                                               ),
                                               const SizedBox(height: 4),
-                                              if (_subtitleForItem(
+                                              if (itemSubtitleFor(
                                                 item,
                                               ).trim().isNotEmpty)
                                                 Text(
-                                                  _subtitleForItem(item),
+                                                  itemSubtitleFor(item),
                                                   style: TextStyle(
                                                     color: Colors.grey.shade600,
                                                     fontSize: 13,

@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // ignore_for_file: deprecated_member_use
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ironvault/core/providers.dart';
+import 'package:ironvault/core/utils/item_display_utils.dart';
 import 'package:ironvault/features/vault/screens/view_credential_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/widgets/empty_state.dart';
@@ -62,61 +61,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     });
   }
 
-  String _subtitleForItem(Map<String, dynamic> item) {
-    final fields = (item['fields'] as Map?)?.cast<String, dynamic>() ?? {};
-    if (item['type'] == 'password') {
-      return (fields['username'] ?? item['username'] ?? '').toString();
-    }
-    if (item['type'] == 'card') {
-      final number = (fields['number'] ?? '').toString().replaceAll(' ', '');
-      if (number.isEmpty) return 'Card ••••';
-      final last4 = number.length >= 4
-          ? number.substring(number.length - 4)
-          : number;
-      return 'Card •••• $last4';
-    }
-    if (item['type'] == 'bank') {
-      final acct = (fields['account_number'] ?? '').toString().replaceAll(
-        ' ',
-        '',
-      );
-      if (acct.isEmpty) return 'Bank account';
-      final last4 = acct.length >= 4 ? acct.substring(acct.length - 4) : acct;
-      return 'A/C •••• $last4';
-    }
-    if (item['type'] == 'document') {
-      final documentId = (fields['document_id'] ?? '').toString().trim();
-      if (documentId.isNotEmpty) {
-        return 'ID: $documentId';
-      }
-
-      final notes = (fields['notes'] ?? '').toString().trim();
-      if (notes.isNotEmpty) {
-        return notes;
-      }
-
-      final rawScans = (fields['scans'] ?? '').toString().trim();
-      if (rawScans.isNotEmpty) {
-        try {
-          final decoded = jsonDecode(rawScans);
-          if (decoded is List) {
-            final count = decoded.length;
-            if (count > 0) {
-              return count == 1 ? '1 scanned page' : '$count scanned pages';
-            }
-          }
-        } catch (_) {}
-      }
-
-      return 'Saved document';
-    }
-    for (final v in fields.values) {
-      final text = v?.toString() ?? '';
-      if (text.trim().isNotEmpty) return text;
-    }
-    return '';
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -152,9 +96,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         return false;
       }
       if (item["title"]?.toLowerCase().contains(q) ?? false) return true;
-      final fields = (item["fields"] as Map?)?.cast<String, dynamic>() ?? {};
-      for (final v in fields.values) {
-        if (v?.toString().toLowerCase().contains(q) ?? false) return true;
+      for (final value in searchableItemFieldValues(item)) {
+        if (value.toLowerCase().contains(q)) return true;
       }
       return false;
     }).toList();
@@ -191,7 +134,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 controller: _controller,
                 onChanged: (text) => setState(() => _query = text.trim()),
                 decoration: InputDecoration(
-                  hintText: "Search passwords, notes, cards, documents…",
+                  hintText: "Search items and non-sensitive details…",
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _query.isEmpty
                       ? null
@@ -288,7 +231,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return const EmptyState(
       icon: Icons.search,
       title: "Search your vault",
-      subtitle: "Type a name, username, note, or document detail to begin.",
+      subtitle: "Type an item name or a non-sensitive field value to begin.",
     );
   }
 
@@ -359,10 +302,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           color: isDark ? Colors.white : Colors.black87,
                         ),
                       ),
-                      if (_subtitleForItem(item).trim().isNotEmpty) ...[
+                      if (itemSubtitleFor(item).trim().isNotEmpty) ...[
                         const SizedBox(height: 2),
                         Text(
-                          _subtitleForItem(item),
+                          itemSubtitleFor(item),
                           style: TextStyle(fontSize: 12, color: textMuted),
                         ),
                       ],

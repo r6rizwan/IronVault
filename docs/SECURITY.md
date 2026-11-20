@@ -6,6 +6,8 @@ IronVault is an offline-first vault. Vault data is encrypted before storage, the
 
 Recovery keys are hidden by default and require re-authentication before reveal. Reveal supports biometrics or PIN fallback. The raw recovery key is kept temporarily until the user confirms it has been saved. Copying a recovery key respects the clipboard setting and clears it after 20 seconds when it remains unchanged. Repeated incorrect PIN attempts trigger a persistent cooldown.
 
+Credential fields designated as sensitive are masked by default. Revealing, copying, or explicitly sharing them requires re-authentication; revealed values are hidden again when the app becomes inactive. Sensitive fields are excluded from list previews and field-based search.
+
 Settings provides a master-PIN-protected vault erase flow. It removes app-managed vault records, attachments, recovery/encryption keys, and exports in private app storage. Copies exported to Downloads, cloud storage, or other locations are not removed by the app.
 
 The app also supports clipboard clearing for copied sensitive fields. On Android, screenshot and recents-preview protection is enabled at the activity level. Sentry crash reporting is enabled in release builds with safe metadata capture.

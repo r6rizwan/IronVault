@@ -13,6 +13,7 @@ import 'package:ironvault/core/constants/item_types.dart';
 import 'package:ironvault/core/providers.dart';
 import 'package:ironvault/core/autolock/auto_lock_provider.dart';
 import 'package:ironvault/core/widgets/app_toast.dart';
+import 'package:ironvault/core/utils/app_reauth_util.dart';
 import 'package:ironvault/features/add/screens/add_item_screen.dart';
 import 'package:ironvault/core/theme/app_tokens.dart';
 import 'package:ironvault/core/utils/attachment_utils.dart';
@@ -30,7 +31,8 @@ class ViewCredentialScreen extends ConsumerStatefulWidget {
       _ViewCredentialScreenState();
 }
 
-class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
+class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen>
+    with WidgetsBindingObserver {
   late Map<String, dynamic> item;
 
   String? _copiedKey;
@@ -51,6 +53,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     item = Map<String, dynamic>.from(widget.item); // local copy so UI updates
     _initObscureStates();
     _loadPrefs();
@@ -66,8 +69,31 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _clipboardClearTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.inactive &&
+        state != AppLifecycleState.paused &&
+        state != AppLifecycleState.detached) {
+      return;
+    }
+
+    final sensitiveFields = typeByKey(
+      (item['type'] ?? 'password').toString(),
+    ).fields.where((field) => field.obscure);
+    if (!sensitiveFields.any((field) => !(_obscureFields[field.key] ?? true))) {
+      return;
+    }
+
+    setState(() {
+      for (final field in sensitiveFields) {
+        _obscureFields[field.key] = true;
+      }
+    });
   }
 
   void _initObscureStates() {
@@ -103,9 +129,57 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
 
   Future<void> _copyValue(String key, String value) async {
     if (_clipboardDisabled) return;
+    if (!await _authorizeSensitiveField(key, 'copy')) return;
+    if (!mounted) return;
     await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
     setState(() => _copiedKey = key);
     await _scheduleClipboardClear(value);
+  }
+
+  FieldDefinition? _fieldDefinition(String key) {
+    for (final field in typeByKey(
+      (item['type'] ?? 'password').toString(),
+    ).fields) {
+      if (field.key == key) return field;
+    }
+    return null;
+  }
+
+  Future<bool> _authorizeSensitiveField(String key, String action) async {
+    final field = _fieldDefinition(key);
+    if (field?.obscure != true) return true;
+
+    final autoLock = ref.read(autoLockProvider.notifier);
+    autoLock.suspendAutoLock();
+    bool authorized;
+    try {
+      authorized = await AppReauthUtil.confirmIdentity(
+        context,
+        ref,
+        reason: 'Re-authenticate to $action ${field!.label.toLowerCase()}',
+      );
+    } finally {
+      autoLock.resumeAutoLock();
+    }
+
+    if (!mounted) return false;
+    if (!authorized) {
+      showAppToast(context, 'Verification required to access this value');
+    }
+    return authorized;
+  }
+
+  Future<void> _toggleFieldVisibility(String key) async {
+    final isHidden = _obscureFields[key] ?? true;
+    if (!isHidden) {
+      setState(() => _obscureFields[key] = true);
+      return;
+    }
+
+    if (!await _authorizeSensitiveField(key, 'reveal')) return;
+    if (!mounted) return;
+    setState(() => _obscureFields[key] = false);
   }
 
   Future<void> _openWebsite(String value) async {
@@ -407,7 +481,13 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
       final value = (fields[field.key] ?? '').toString().trim();
       if (value.isEmpty) continue;
       entries.add(
-        _ShareEntry(label: field.label, value: value, selected: !field.obscure),
+        _ShareEntry(
+          label: field.label,
+          value: value,
+          selected: !field.obscure,
+          sensitive: field.obscure,
+          fieldKey: field.key,
+        ),
       );
     }
 
@@ -522,6 +602,14 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
     if (shareText.trim().isEmpty && shareFiles.isEmpty) {
       showAppToast(context, 'Select at least one field to share');
       return;
+    }
+
+    for (final entry in entries) {
+      if (!entry.selected || !entry.sensitive || entry.fieldKey == null) {
+        continue;
+      }
+      if (!await _authorizeSensitiveField(entry.fieldKey!, 'share')) return;
+      break;
     }
 
     final autoLock = ref.read(autoLockProvider.notifier);
@@ -841,11 +929,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                 obscureState ? Icons.visibility : Icons.visibility_off,
                 size: 22,
               ),
-              onPressed: () {
-                setState(() {
-                  _obscureFields[copyKey] = !obscureState;
-                });
-              },
+              onPressed: () => _toggleFieldVisibility(copyKey),
             ),
           if (copyKey != null)
             IconButton(
@@ -1399,11 +1483,7 @@ class _ViewCredentialScreenState extends ConsumerState<ViewCredentialScreen> {
                                   : Icons.visibility_off,
                               size: 22,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureFields[field.key] = !obscureState;
-                              });
-                            },
+                            onPressed: () => _toggleFieldVisibility(field.key),
                           ),
                         IconButton(
                           icon: Icon(
@@ -1441,10 +1521,14 @@ class _ShareEntry {
     required this.value,
     this.selected = true,
     this.files = const [],
+    this.sensitive = false,
+    this.fieldKey,
   });
 
   final String label;
   final String value;
   bool selected;
   final List<XFile> files;
+  final bool sensitive;
+  final String? fieldKey;
 }

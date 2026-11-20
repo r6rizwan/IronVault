@@ -125,6 +125,87 @@ const List<ItemTypeDefinition> itemTypes = [
       FieldDefinition(key: 'note', label: 'Note', maxLines: 6, required: true),
     ],
   ),
+  ItemTypeDefinition(
+    key: 'wifi',
+    label: 'Wi-Fi Network',
+    icon: Icons.wifi_rounded,
+    fields: [
+      FieldDefinition(
+        key: 'ssid',
+        label: 'Network Name (SSID)',
+        required: true,
+      ),
+      FieldDefinition(
+        key: 'wifi_password',
+        label: 'Wi-Fi Password',
+        obscure: true,
+      ),
+      FieldDefinition(key: 'security_type', label: 'Security Type'),
+      FieldDefinition(key: 'notes', label: 'Notes', maxLines: 3),
+    ],
+  ),
+  ItemTypeDefinition(
+    key: 'api_key',
+    label: 'API Credential',
+    icon: Icons.vpn_key_outlined,
+    fields: [
+      FieldDefinition(
+        key: 'api_service',
+        label: 'Service / Provider',
+        required: true,
+      ),
+      FieldDefinition(
+        key: 'api_key_value',
+        label: 'API Key / Token',
+        obscure: true,
+        required: true,
+      ),
+      FieldDefinition(
+        key: 'endpoint',
+        label: 'Endpoint',
+        keyboardType: TextInputType.url,
+      ),
+      FieldDefinition(key: 'scope', label: 'Scope / Permissions'),
+      FieldDefinition(key: 'expires', label: 'Expiration Date'),
+      FieldDefinition(key: 'notes', label: 'Notes', maxLines: 3),
+    ],
+  ),
+  ItemTypeDefinition(
+    key: 'recovery',
+    label: 'Recovery Codes & Keys',
+    icon: Icons.key_outlined,
+    fields: [
+      FieldDefinition(
+        key: 'recovery_service',
+        label: 'Service / Account',
+        required: true,
+      ),
+      FieldDefinition(
+        key: 'recovery_material',
+        label: 'Recovery Codes / Key (comma-separated)',
+        obscure: true,
+        required: true,
+      ),
+      FieldDefinition(key: 'notes', label: 'Notes', maxLines: 3),
+    ],
+  ),
+  ItemTypeDefinition(
+    key: 'license',
+    label: 'Software License',
+    icon: Icons.card_membership_outlined,
+    fields: [
+      FieldDefinition(key: 'license_product', label: 'Product', required: true),
+      FieldDefinition(
+        key: 'license_key',
+        label: 'License Key',
+        obscure: true,
+        required: true,
+      ),
+      FieldDefinition(key: 'version', label: 'Version'),
+      FieldDefinition(key: 'purchase_date', label: 'Purchase Date'),
+      FieldDefinition(key: 'notes', label: 'Notes', maxLines: 3),
+    ],
+  ),
 ];
 
 ItemTypeDefinition typeByKey(String key) {
